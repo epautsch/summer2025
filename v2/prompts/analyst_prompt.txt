@@ -1,0 +1,1 @@
+Describe how to implement a function that calculates the Fibonacci sequence up to a given number.

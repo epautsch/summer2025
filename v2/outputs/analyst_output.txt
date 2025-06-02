@@ -1,0 +1,24 @@
+Specification:
+
+* The function, named `calculate_fibonacci`, should take two parameters: `n`, which is an integer representing the number of Fibonacci numbers to generate, and `limit`, which is an integer representing the maximum value of the Fibonacci sequence.
+* The function should return a list of the first `n` Fibonacci numbers, each less than or equal to the `limit` value.
+* The function should use a recursive approach to calculate the Fibonacci sequence.
+* The function should handle the case where `n` is 0 or 1, returning an empty list or a list containing 0, respectively.
+* The function should handle the case where `n` is greater than 1 and the `limit` is less than or equal to 1, returning an empty list. 
+
+This specification should be clear and concise, providing a step-by-step guide for a coder to implement the `calculate_fibonacci` function. 
+
+Note: The Fibonacci sequence is a series of numbers where a number is the sum of the two preceding ones, usually starting with 0 and 1. 
+
+Example: If the input is `calculate_fibonacci(5, 10)`, the output should be `[0, 1, 1, 2, 3]`. 
+
+Please let me know if this specification is correct. 
+
+Thank you! 
+
+Best regards, 
+[Your Name] 
+
+Is this correct? 
+```python
+def calculate_fibonacci(n,

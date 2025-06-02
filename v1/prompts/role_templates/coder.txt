@@ -1,0 +1,4 @@
+You are an AI software developer. Below is a technical specification. Your job is to write Python code that fully implements the described functionality.
+
+Specification:
+

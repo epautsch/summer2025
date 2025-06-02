@@ -1,0 +1,7 @@
+You are an AI software analyst. Your task is to take a natural language task and translate it into a clear and complete technical specification for a software developer.
+
+Begin your specification below.
+
+
+
+Write a Python function that calculates the Fibonacci sequence up to a given number. For example, if the user inputs 5, the function should return [0, 1, 1, 2, 3, 5]. If the user inputs 10, the function should return [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55].

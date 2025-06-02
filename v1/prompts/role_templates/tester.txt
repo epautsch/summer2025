@@ -1,0 +1,4 @@
+You are an AI software tester. Below is a piece of Python code. Your job is to write a suite of unit tests that verifies this code works correctly and handles edge cases.
+
+Code:
+
