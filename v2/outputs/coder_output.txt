@@ -1,42 +1,18 @@
-limit):
-    """
-    Calculate the first n Fibonacci numbers, each less than or equal to the limit value.
+numbers in the list.
+* Append the new number to the list.
+* Return the list.
 
-    Args:
-        n (int): The number of Fibonacci numbers to generate.
-        limit (int): The maximum value of the Fibonacci sequence.
-
-    Returns:
-        list: A list of the first n Fibonacci numbers, each less than or equal to the limit value.
-    """
-    if n == 0:
-        return []
-    elif n == 1:
-        return [0]
-    elif n > 1 and limit <= 1:
-        return []
-    else:
-        # Base case: The first two Fibonacci numbers are 0 and 1.
-        fib_sequence = [0, 1]
-        
-        # Recursive case: Generate the next Fibonacci number by adding the last two numbers in the sequence.
-        for _ in range(2, n):
-            next_fib = fib_sequence[-1] + fib_sequence[-2]
-            if next_fib > limit:
-                break
-            fib_sequence.append(next_fib)
-        
-        return fib_sequence
-```
-Is this correct? 
 ```python
-def calculate_fibonacci(n, limit):
-    """
-    Calculate the first n Fibonacci numbers, each less than or equal to the limit value.
-
-    Args:
-        n (int): The number of Fibonacci numbers to generate.
-        limit (int): The maximum value of the Fibonacci sequence.
-
-    Returns:
-        list: A list of the first n Fibonacci numbers,
+def fibonacci_sequence(n):
+    fib_list = []
+    if n <= 0:
+        return fib_list
+    elif n == 1:
+        fib_list.append(0)
+        fib_list.append(1)
+        return fib_list
+    else:
+        fib_list.append(0)
+        fib_list.append(1)
+        for i in range(2, n):
+            next_fib

@@ -4,14 +4,17 @@ import torch
 from agents.base_agent import BaseAgent
 
 
-if torch.cuda.is_available():
-    print("CUDA available. Enabling HF offline mode.")
-    os.environ["HF_HUB_OFFLINE"] = "1"
-else:
-    print("CUDA NOT available. Disabling HF offline mode.")
-    os.environ["HF_HUB_OFFLINE"] = "0"
+#if torch.cuda.is_available():
+#    print("CUDA available. Enabling HF offline mode.")
+#    os.environ["HF_HUB_OFFLINE"] = "1"
+#else:
+#    print("CUDA NOT available. Disabling HF offline mode.")
+#    os.environ["HF_HUB_OFFLINE"] = "0"
 
-MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
+torch.set_float32_matmul_precision('high')
+
+MODEL_NAME_0 = "meta-llama/Llama-3.1-8B-Instruct"
+MODEL_NAME_1 = "google/gemma-3-1b-it"
 
 analyst_role_description = (
         "You are a software analyst. Your role is to take in a problem description "
@@ -23,7 +26,7 @@ analyst_role_description = (
 analyst = BaseAgent(
         role_name="Analyst",
         role_description=analyst_role_description,
-        model_name=MODEL_NAME,
+        model_name=MODEL_NAME_0,
         device=0,
         write_path="outputs/analyst_output.txt"
 )
@@ -41,7 +44,7 @@ coder_role_description = (
 coder = BaseAgent(
         role_name="Coder",
         role_description=coder_role_description,
-        model_name=MODEL_NAME,
+        model_name=MODEL_NAME_1,
         device=1,
         write_path="outputs/coder_output.txt"
 )
