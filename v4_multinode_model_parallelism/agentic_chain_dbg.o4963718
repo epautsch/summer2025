@@ -1,0 +1,42 @@
+Master node: x3005c0s25b0n0.hsn.cm.polaris.alcf.anl.gov Master port: 29500
+Traceback (most recent call last):
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/bin/torchrun", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/run.py", line 918, in main
+    run(args)
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/run.py", line 909, in run
+    elastic_launch(
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 260, in launch_agent
+    result = agent.run()
+             ^^^^^^^^^^^
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/metrics/api.py", line 137, in wrapper
+    result = f(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/agent/server/api.py", line 711, in run
+    result = self._invoke_run(role)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/agent/server/api.py", line 864, in _invoke_run
+    self._initialize_workers(self._worker_group)
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/metrics/api.py", line 137, in wrapper
+    result = f(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/agent/server/api.py", line 683, in _initialize_workers
+    self._rendezvous(worker_group)
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/metrics/api.py", line 137, in wrapper
+    result = f(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/agent/server/api.py", line 500, in _rendezvous
+    rdzv_info = spec.rdzv_handler.next_rendezvous()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/rendezvous/dynamic_rendezvous.py", line 1162, in next_rendezvous
+    self._op_executor.run(join_op, deadline, self._get_deadline)
+  File "/lus/grand/projects/EVITA/erik/envs/agentic/lib/python3.11/site-packages/torch/distributed/elastic/rendezvous/dynamic_rendezvous.py", line 679, in run
+    raise RendezvousTimeoutError
+torch.distributed.elastic.rendezvous.api.RendezvousTimeoutError
