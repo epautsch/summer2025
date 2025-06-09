@@ -1,0 +1,16 @@
+## Software Specification: CUDA Matrix Multiplication
+
+**Project Goal:** Develop a CUDA-accelerated application for performing matrix multiplication.
+
+**Requirements:**
+
+*   **Input:** Two matrices, A and B.
+*   **Dimensions:** User-defined rows/columns for both matrices (A: m x n, B: n x p). *Requires user input.*
+*   **Data Type:** User-specified (float, double, int, etc.). *Requires user input.*
+*   **Initialization:** Matrices can be either user-provided or randomly generated. *Requires user input.*
+*   **CUDA Implementation:** Utilize CUDA kernels for parallel matrix multiplication.
+*   **Output:** Resultant matrix C (m x p) containing the product of A and B.
+*   **Error Handling:** Implement checks for dimension compatibility (n from A must equal n from B).
+*   **Performance:** Achieve user-defined performance goals (execution time, memory usage). *Requires user input.*
+*   **Verification:** Include a CPU-based reference implementation for result validation.
+*   **Reporting:** Basic timing information (kernel execution time).

@@ -1,0 +1,16 @@
+## CUDA Matrix Multiplication Specification
+
+**Problem:** Implement matrix multiplication (C = A * B) using CUDA on a GPU. Assume square matrices of size N x N, where N is a power of 2.
+
+**Specifications for Programmer:**
+
+*   **Kernel Function:** Create a CUDA kernel `matrixMulKernel` taking three float arrays (A, B, C) and matrix size N as input.
+*   **Thread Mapping:** Each thread should compute *one* element of the output matrix C. Map thread IDs to row and column indices of C. (e.g., `row = blockIdx.y * blockDim.y + threadIdx.y`, `col = blockIdx.x * blockDim.x + threadIdx.x`).
+*   **Shared Memory:** Utilize shared memory to cache sub-matrices of A and B for faster access. Determine optimal tile size based on block dimensions.
+*   **Block Dimensions:** Configure block dimensions (e.g., 16x16) to efficiently utilize shared memory and maximize occupancy.
+*   **Global Memory Access:** Implement coalesced global memory access patterns when loading A and B into shared memory.
+*   **Error Handling:** Include basic error checking after CUDA calls (e.g., `cudaGetLastError()`).
+*   **Host Code:** Write host code to allocate memory on the host and device, copy data to the device, launch the kernel, and copy the result back to the host.
+*   **Data Initialization:** Host code should initialize matrices A and B with sample data.
+*   **Verification:** Include a CPU-based matrix multiplication for verifying the CUDA result.
+*   **Compile & Run:** Provide instructions for compiling and running the CUDA code.

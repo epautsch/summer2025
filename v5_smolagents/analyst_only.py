@@ -7,7 +7,7 @@ model = TransformersModel(
        #model_id="google/gemma-3-12b-it",
        model_id="google/gemma-3-27b-it",
        device_map="auto",
-       max_new_tokens=512
+       max_new_tokens=256
 )
 
 search_tool = WebSearchTool()
