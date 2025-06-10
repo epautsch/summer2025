@@ -70,18 +70,18 @@ def preprocess_for_llm(history: str, agent_prompt: str, max_new_tokens: int):
         )
     output_ids = gen[0][input_len:]
     decoded = processor.decode(output_ids, skip_special_tokens=True)
-    print(f"[DEBUG] Raw LLM response:\n{decoded}\n")
+    #print(f"[DEBUG] Raw LLM response:\n{decoded}\n")
     return decoded.strip()
 
 def parse_manager_response(resp: str) -> dict:
-    print(f"[DEBUG] Stripping fences from response...")
+    #print(f"[DEBUG] Stripping fences from response...")
     stripped = strip_markdown_fences(resp)
-    print(f"[DEBUG] After stripping fences:\n{stripped}\n")
+    #print(f"[DEBUG] After stripping fences:\n{stripped}\n")
     try:
         data = json.loads(stripped)
         pretty = json.dumps(data, indent=2)
-        print("[DEBUG] Parsed JSON:")
-        print(pretty + "\n")
+        #print("[DEBUG] Parsed JSON:")
+        #print(pretty + "\n")
         if all(k in data for k in ("thought", "action", "payload")):
             return data
         else:
@@ -89,6 +89,33 @@ def parse_manager_response(resp: str) -> dict:
     except json.JSONDecodeError as e:
         print(f"[DEBUG] JSON decode error: {e}")
     raise ValueError(f"Invalid JSON from manager: {stripped}")
+
+def maybe_summarize(history: str, original_task: str, word_limit: int = 400) -> str:
+    words = history.split()
+    if len(words) <= word_limit:
+        print(f"[DEBUG] Word limit is {len(words)}... NOT calling summarizer.")
+        return history
+    else:
+        print(f"[DEBUG] Word limit is {len(words)}... calling summarizer.")
+
+    prompt = (
+        f"Original task: {original_task}\n\n"
+        "Conversation history:\n"
+        f"{history}\n\n"
+        "Please summarize the above conversation history in 50-100 words, "
+        "preserving the original task exactly as given."
+    )
+
+    summary = summarizer.generate(prompt)
+
+    new_history = (
+        f"Original task: {original_task}\n"
+        "History summary:\n"
+        f"{summary}\n"
+    )
+    print("[DEBUG] History was long; ran summarizer →")
+    print(summary, "\n")
+    return new_history
 
 ############### Agent class and sub-agents #################
 
@@ -135,18 +162,35 @@ coder = Agent(
         "You are an HPC CUDA coder. Take a specification and produce complete .cu code, "
         "with inline comments. Do not output markdown fences—only raw code."
     ),
-    max_new_tokens=2048
+    max_new_tokens=1024
+)
+
+summarizer = Agent(
+    role_name="Summarizer",
+    system_prompt=(
+        "You are a concise summarizer. Given a long conversation between a Manager "
+        "and sub-agents, produce a short summary (50-100 words) that captures the key "
+        "decisions (Thought, Action, Observation) *and* retains the original task context."
+    ),
+    max_new_tokens=256
 )
 
 ############## manager's react loop ###################
 
+YELLOW = "\033[33m"
+GREEN = "\033[32m"
+BLUE = "\033[34m"
+RESET = "\033[0m"
+
 def main_react():
     history = ""
-    task = "User wants to do matrix multiplication in CUDA."
-    agent_prompt = f"Thought: The user requested: \"{task}\". What should be my first action?"
+    original_task = "Implement basic matrix multiplication in CUDA."
+    agent_prompt = f"Thought: The user requested: \"{original_task}\". What should be my first action?"
 
-    for i in range(10):
+    for i in range(20):
         print(f"\n=========== Loop iteration {i} ===========")
+
+        history = maybe_summarize(history, original_task, word_limit=300)
         resp_text = preprocess_for_llm(history, agent_prompt, max_new_tokens=1024)
 
         try:
@@ -167,11 +211,10 @@ def main_react():
 
         thought, action, payload = mgr["thought"], mgr["action"], mgr["payload"]
         print("[DEBUG] Manager decisions:")
-        print(json.dumps({
-            "thought": thought,
-            "action": action,
-            "payload": payload
-        }, indent=2) + "\n")
+        
+        print(f"{YELLOW}Thought: {thought}{RESET}")
+        print(f"{GREEN}Action: {action}{RESET}")
+        print(f"{BLUE}Payload: {payload}{RESET}")
 
         history += f"Thought: {thought}\nAction: {action} | Payload: {payload}\n"
 
@@ -179,6 +222,7 @@ def main_react():
             spec = analyst.generate(payload)
             save_to_file(spec, "analyst_spec.txt")
             observation = f"Analyst output saved to analyst_spec.txt:\n{spec}"
+
         elif action == "call_coder":
             if os.path.exists(payload):
                 with open(payload) as f:
@@ -188,17 +232,21 @@ def main_react():
             code = coder.generate(spec_text)
             save_to_file(code, "matmul.cu")
             observation = f"Coder output saved to matmul.cu:\n{code[:200]}...\n"
+
         elif action == "compile_code":
             out = run_shell(payload)
             observation = f"Compile output:\n{out}"
+
         elif action == "run_binary":
             out = run_shell(payload)
             observation = f"Run output:\n{out}"
+
         elif action == "finish":
             summary = payload
             print("=== MANAGER FINAL SUMMARY ===")
             print(summary)
             return
+
         else:
             observation = f"Unknown action: {action}"
         
