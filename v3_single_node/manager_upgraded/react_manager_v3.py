@@ -163,18 +163,18 @@ class Agent:
             prompt_parts.append(f"Observation: {self.observation}")
         prompt = "\n".join(filter(None, prompt_parts)).strip()
 
-        raw = self.model.generate(prompt)
-        try:
-            parsed = json.loads(strip_markdown_fences(raw))
-        except json.JSONDecodeError:
-            print(f"{YELLOW}Warning:{RESET} Failed to parse JSON from model response: {raw}")
-            fix_prompt = (
-                "Your last response was not valid JSON. "
-                "Please output only valid JSON with keys 'thought', 'action', and 'payload'."
-            )
-            raw = self.model.generate(fix_prompt)
-            parsed = json.loads(strip_markdown_fences(raw))
-        data = parsed
+        while True:
+            raw = self.model.generate(prompt)
+            try:
+                data = json.loads(strip_markdown_fences(raw))
+                break
+            except json.JSONDecodeError:
+                print(f"{YELLOW}Warning:{RESET} Invalid JSON, retrying...\n{raw}\n")
+                self.history_mgr.add(f"Observation: Manager JSON parse failed: {raw}")
+                prompt += (
+                    "\nYour last response was not valid JSON. "
+                    "Please reply with only a JSON object containing keys 'thought', 'action', and 'payload'."
+                )
 
         self.thought = data['thought']
         self.action = Action(type=ActionType[data['action'].upper()], payload=data['payload'])
@@ -232,23 +232,31 @@ def main_react():
     )
 
     history_mgr = HistoryManager(summarizer=summarizer_llm)
+
     executor = Executor()
+
     agent = Agent(
         role_description=manager_system_prompt,
         model=manager_llm,
         history_mgr=history_mgr
     )
 
-    agent.step(user_input="Implement basic matrix multiplication in C++.")
+    while True:
+        task = input("Enter a task (or 'quit' to exit): ")
+        if not task or task.strip().lower() in ('quit', 'exit'):
+            print("Goodbye!")
+            break
+        
+        agent.step(user_input=task)
 
-    while agent.action.type is not ActionType.FINISH:
-        obs = executor.execute(agent.action)
-        agent.observation = obs.result
-        print(f"{BLUE}Observation:{RESET} {agent.observation}")
-        history_mgr.add(f"Observation: {agent.observation}")
-        agent.step()
+        while agent.action.type is not ActionType.FINISH:
+            obs = executor.execute(agent.action)
+            agent.observation = obs.result
+            print(f"{BLUE}Observation:{RESET} {agent.observation}")
+            history_mgr.add(f"Observation: {agent.observation}")
+            agent.step()
 
-    print("Workflow complete.")
+    print(f"{GREEN}==== Task complete ===={RESET}\n")
 
 if __name__ == "__main__":
     main_react()
