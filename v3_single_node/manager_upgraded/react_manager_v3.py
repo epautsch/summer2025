@@ -5,16 +5,25 @@ import os
 from enum import Enum, auto
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
+
 import torch
+torch.set_float32_matmul_precision('high')
 from transformers import AutoProcessor, Gemma3ForConditionalGeneration
 
+from rich.console import Console
+from rich.traceback import install
+from rich.status import Status
+from rich.panel import Panel
+from rich.rule import Rule
+from rich.syntax import Syntax
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
-######### ANSI Colors #########
 
-YELLOW = "\033[33m"
-GREEN = "\033[32m"
-BLUE = "\033[34m"
-RESET = "\033[0m"
+######### rich stuff ##########
+
+console = Console()
+install()
 
 ############## model and processor setup ############
 
@@ -30,28 +39,25 @@ processor=AutoProcessor.from_pretrained(model_id)
 ############ utility funcs ##############
 
 def strip_markdown_fences(text: str) -> str:
-#    lines = text.strip().splitlines()
-#    if len(lines) >= 2 and re.match(r"^```", lines[0]) and re.match(r"^```", lines[-1]):
-#        return "\n".join(lines[1:-1]).strip()
     m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if m:
         return m.group(1).strip()
     return text.strip()
 
 def run_shell(cmd: str) -> str:
-    print(f"{BLUE}Running shell command:{RESET} {cmd}")
-    proc = subprocess.Popen(
-        cmd, shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT
-    )
-    out, _ = proc.communicate()
-    decoded = out.decode("utf-8", errors="ignore")
-    print(f"{BLUE}Shell output:{RESET}\n{decoded}")
-    return decoded
+    with console.status(f"⏳ [bold blue]Running shell command:[/] {cmd}", spinner="dots"):
+        proc = subprocess.Popen(
+            cmd, shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        out, _ = proc.communicate()
+    text = out.decode("utf-8", errors="ignore")
+    console.log(f"🔹 [bold blue]Shell output:[/]\n{text}")
+    return text
 
 def save_to_file(text: str, filename: str):
-    print(f"{GREEN}Saving to file:{RESET} {filename}")
+    console.log(f"💾 Saving to file: [bold green]{filename}[/]")
     with open(filename, "w") as f:
         f.write(text.strip() + "\n")
 
@@ -85,9 +91,18 @@ class HistoryManager:
     def get_full(self) -> str:
         return "\n".join(self.history)
 
+    def show_history(self):
+        table = Table(title="Agent History")
+        table.add_column("Step", style="dim", width=6, justify="right")
+        table.add_column("Entry")
+        for i, entry in enumerate(self.history, 1):
+            table.add_row(str(i), entry)
+        console.print(table)
+
 @dataclass
 class Executor:
     def execute(self, action: Action) -> Observation:
+        console.log(f"[bold cyan]Executing action[/] → {action.type.name}")
         if action.type == ActionType.SYSTEM_CALL:
             if isinstance(action.payload, str):
                 cmd = action.payload
@@ -97,22 +112,25 @@ class Executor:
             return Observation(result=output)
 
         elif action.type == ActionType.CODE:
-            if isinstance(action.payload, dict):
-                code = action.payload.get('input', '')
-                fname = action.payload.get('filename', 'code.out')
-            else:
-                code = action.payload
-                fname = 'code.out'
+            code = action.payload.get('input', '')
+            fname = action.payload.get('filename', 'code.out')
+            ext = os.path.splitext(fname)[1].lstrip('.')
+            lang = ext if ext else 'text'
+            syntax = Syntax(code, lang, line_numbers=True)
+            console.print(Panel(syntax, title=f"Generated Code → {fname}"))
             save_to_file(code, fname)
             return Observation(result=f"Saved code to {fname}")
 
         elif action.type == ActionType.ANALYZE:
+            console.log("[green]Analysis complete.[/]")
             return Observation(result="Analysis complete.")
 
         elif action.type == ActionType.FINISH:
+            console.log(f"[bold magenta]Workflow finished:[/] {action.payload}")
             return Observation(result="Finished workflow.")
 
         else:
+            console.log(f"[red]Unknown action:[/] {action.type}")
             return Observation(result=f"Unknown action: {action.type}")
 
 @dataclass
@@ -169,7 +187,7 @@ class Agent:
                 data = json.loads(strip_markdown_fences(raw))
                 break
             except json.JSONDecodeError:
-                print(f"{YELLOW}Warning:{RESET} Invalid JSON, retrying...\n{raw}\n")
+                console.log(f"[red]Warning:[/] Invalid JSON, retrying...\n{raw}\n")
                 self.history_mgr.add(f"Observation: Manager JSON parse failed: {raw}")
                 prompt += (
                     "\nYour last response was not valid JSON. "
@@ -179,9 +197,11 @@ class Agent:
         self.thought = data['thought']
         self.action = Action(type=ActionType[data['action'].upper()], payload=data['payload'])
 
-        print(f"{YELLOW}Thought:{RESET} {self.thought}")
-        print(f"{GREEN}Action:{RESET} {self.action}")
-        print(f"{GREEN}Payload:{RESET} {self.action.payload}")
+        console.print(Rule("[bold yellow]Thought[/]"))
+        console.print(self.thought)
+        console.print(Rule("[bold green]Action[/]"))
+        console.print(f"[bold]{self.action.type.name}[/]")
+        console.print(Panel(Syntax(json.dumps(self.action.payload, indent=2), "json"), title="Payload"))
 
         self.history_mgr.add(f"Thought: {self.thought}")
         self.history_mgr.add(f"Action: {self.action.type.name} | Payload: {self.action.payload}")
@@ -230,11 +250,8 @@ def main_react():
         system_prompt=summarizer_system_prompt,
         max_new_tokens=512
     )
-
     history_mgr = HistoryManager(summarizer=summarizer_llm)
-
     executor = Executor()
-
     agent = Agent(
         role_description=manager_system_prompt,
         model=manager_llm,
@@ -242,9 +259,9 @@ def main_react():
     )
 
     while True:
-        task = input("Enter a task (or 'quit' to exit): ")
+        task = console.input("[bold]Enter a task[/] (or 'quit' to exit): ")
         if not task or task.strip().lower() in ('quit', 'exit'):
-            print("Goodbye!")
+            console.print("[bold red]Goodbye![/]")
             break
         
         agent.step(user_input=task)
@@ -252,11 +269,13 @@ def main_react():
         while agent.action.type is not ActionType.FINISH:
             obs = executor.execute(agent.action)
             agent.observation = obs.result
-            print(f"{BLUE}Observation:{RESET} {agent.observation}")
+            console.print(Rule("[bold blue]Observation[/]"))
+            console.print(agent.observation)
             history_mgr.add(f"Observation: {agent.observation}")
             agent.step()
 
-    print(f"{GREEN}==== Task complete ===={RESET}\n")
+        console.print(Rule("[bold green]==== Task complete ===="))
+        history_mgr.show_history()
 
 if __name__ == "__main__":
     main_react()
