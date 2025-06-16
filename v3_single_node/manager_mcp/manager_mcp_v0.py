@@ -3,8 +3,7 @@ import re
 import subprocess
 import os
 from enum import Enum, auto
-from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from dataclasses import dataclass
 
 import torch
 from transformers import AutoProcessor, Gemma3ForConditionalGeneration
@@ -17,6 +16,8 @@ from rich.rule import Rule
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
+
+from mcp import MCPClient, ToolDefinition
 
 
 ######### rich stuff ##########
@@ -33,7 +34,7 @@ llm_model = Gemma3ForConditionalGeneration.from_pretrained(
     device_map="auto",
     torch_dtype=torch.bfloat16
 ).eval()
-processor=AutoProcessor.from_pretrained(model_id)
+processor = AutoProcessor.from_pretrained(model_id)
 
 ############ utility funcs ##############
 
@@ -69,54 +70,25 @@ class ActionType(Enum):
 @dataclass
 class Action:
     type: ActionType
-    payload: Dict[str, Any]
+    payload: dict
 
 @dataclass
 class Observation:
     result: str
 
 @dataclass
-class HistoryManager:
-    summarizer: Any
-    history: List[str] = field(default_factory=list)
-    word_limit: int = 400
-
-    def add(self, entry: str):
-        self.history.append(entry)
-        if len(self.get_full().split()) > self.word_limit:
-            summary = self.summarizer.generate(self.get_full())
-            self.history = [f"History summary: {summary}"]
-
-    def get_full(self) -> str:
-        return "\n".join(self.history)
-
-    def show_history(self):
-        table = Table(title="Agent History")
-        table.add_column("Step", style="dim", width=6, justify="right")
-        table.add_column("Entry")
-        for i, entry in enumerate(self.history, 1):
-            table.add_row(str(i), entry)
-        console.print(table)
-
-@dataclass
 class Executor:
     def execute(self, action: Action) -> Observation:
         console.log(f"[bold cyan]Executing action[/] → {action.type.name}")
         if action.type == ActionType.SYSTEM_CALL:
-            if isinstance(action.payload, str):
-                cmd = action.payload
-            else:
-                cmd = action.payload.get('cmd', '')
-            output = run_shell(cmd)
-            return Observation(result=output)
+            cmd = action.payload.get('cmd', '')
+            return Observation(result=run_shell(cmd))
 
         elif action.type == ActionType.CODE:
             code = action.payload.get('input', '')
             fname = action.payload.get('filename', 'code.out')
-            ext = os.path.splitext(fname)[1].lstrip('.')
-            lang = ext if ext else 'text'
-            syntax = Syntax(code, lang, line_numbers=True)
-            console.print(Panel(syntax, title=f"Generated Code → {fname}"))
+            lang = os.path.splitext(fname)[1].lstrip('.') or 'text'
+            console.print(Panel(Syntax(code, lang, line_numbers=True), title=f"Generated Code → {fname}"))
             save_to_file(code, fname)
             return Observation(result=f"Saved code to {fname}")
 
@@ -125,8 +97,8 @@ class Executor:
             return Observation(result="Analysis complete.")
 
         elif action.type == ActionType.FINISH:
-            console.log(f"[bold magenta]Workflow finished:[/] {action.payload}")
-            return Observation(result="Finished workflow.")
+            console.log(f"[bold magenta]Workflow finished:[/] {action.payload.get('result')}" )
+            return Observation(result=action.payload.get('result', ''))
 
         else:
             console.log(f"[red]Unknown action:[/] {action.type}")
@@ -139,10 +111,10 @@ class ManagerModel:
     system_prompt: str
     max_new_tokens: int
 
-    def generate(self, user_prompt: str) -> str:
+    def generate(self, prompt: str) -> str:
         payload = [
             {"role": "system", "content": [{"type": "text", "text": self.system_prompt}]},
-            {"role": "user", "content": [{"type": "text", "text": user_prompt}]}
+            {"role": "user", "content": [{"type": "text", "text": prompt}]}
         ]
         raw = self.processor.apply_chat_template(
             payload,
@@ -163,49 +135,75 @@ class ManagerModel:
         decoded = self.processor.decode(gen_ids, skip_special_tokens=True)
         return strip_markdown_fences(decoded)
 
-@dataclass
-class Agent:
-    role_description: str
-    model: ManagerModel
-    history_mgr: HistoryManager
-    thought: str = ''
-    action: Action = None
-    observation: str = ''
+############## Instantiate models ##########
 
-    def step(self, user_input: str = None):
-        prompt_parts = [self.role_description, self.history_mgr.get_full()]
-        if user_input:
-            prompt_parts.append(f"User: {user_input}")
-        else:
-            prompt_parts.append(f"Observation: {self.observation}")
-        prompt = "\n".join(filter(None, prompt_parts)).strip()
+manager_system_prompt = (
+    "You are an HPC manager agent. Use JSON-RPC calls to 'analyze', 'code', 'system_call', or 'finish'."
+)
 
-        while True:
-            raw = self.model.generate(prompt)
-            try:
-                data = json.loads(strip_markdown_fences(raw))
-                break
-            except json.JSONDecodeError:
-                console.log(f"[red]Warning:[/] Invalid JSON, retrying...\n{raw}\n")
-                self.history_mgr.add(f"Observation: Manager JSON parse failed: {raw}")
-                prompt += (
-                    "\nYour last response was not valid JSON. "
-                    "Please reply with only a JSON object containing keys 'thought', 'action', and 'payload'."
-                )
+manager_llm = ManagerModel(
+    model=llm_model,
+    processor=processor,
+    system_prompt=manager_system_prompt,
+    max_new_tokens=2048
+)
 
-        self.thought = data['thought']
-        self.action = Action(type=ActionType[data['action'].upper()], payload=data['payload'])
+################# MCP tools ###################
 
-        console.print(Rule("[bold yellow]Thought[/]"))
-        console.print(self.thought)
-        console.print(Rule("[bold green]Action[/]"))
-        console.print(f"[bold]{self.action.type.name}[/]")
-        console.print(Panel(Syntax(json.dumps(self.action.payload, indent=2), "json"), title="Payload"))
+toold = [
+    ToolDefinition(
+        name="analyze",
+        description="Internal planning or specification",
+        parameters={
+            "type": "object",
+            "properties": {"input": {"type": "string"}},
+            "required": ["input"]
+        }
+        ),
+    ToolDefinition(
+        name="code",
+        description="Generate source code and save to file",
+        parameters={
+            "type": "object",
+            "properties": {
+                "input": {"type": "string"},
+                "filename": {"type": "string"}
+            },
+            "required": ["input", "filename"]
+        }
+    ),
+    ToolDefinition(
+        name="system_call",
+        description="Execute a shell command and return output",
+        parameters={
+            "type": "object",
+            "properties": {"cmd": {"type": "string"}},
+            "required": ["cmd"]
+        }
+    ),
+    ToolDefinition(
+        name="finish",
+        description="Finish workflow with summary",
+        parameters={
+            "type": "object",
+            "properties": {"result": {"type": "string"}},
+            "required": ["result"]
+        }
+    )
+]
 
-        self.history_mgr.add(f"Thought: {self.thought}")
-        self.history_mgr.add(f"Action: {self.action.type.name} | Payload: {self.action.payload}")
+######### MCP client ########
 
-def main_react():
+def llm_adapter(prompt: str) -> str:
+    return manager_llm.generate(prompt)
+
+mcp_client = MCPClient(llm_adapter=llm_adapter, tools=tools)
+executor = Executor()
+
+########### main lloop ########
+
+def main():
+    """
     manager_system_prompt = (
         "You are an HPC manager agent responsible for taking a user task and going through "
         "the end-to-end process to accomplish that task. Tasks could include (but are not "
@@ -230,52 +228,31 @@ def main_react():
         "Do NOT chain commands with '&&'. Run one command, observe the output, and then continue. "
         "Do NOT wrap your JSON in markdown fences or include extra keys/text."
     )
-    summarizer_system_prompt = (
-        "You are a concise summarizer. Given a long conversation between a Manager "
-        "and sub-agents, produce a short summary (100-150 words) that captures the key "
-        "decisions (Thought, Action, Observation) *and* retains the original task context."
-    )
-
-    manager_llm = ManagerModel(
-        model=llm_model,
-        processor=processor,
-        system_prompt=manager_system_prompt,
-        max_new_tokens=2048
-    )
-
-    summarizer_llm = ManagerModel(
-        model=llm_model,
-        processor=processor,
-        system_prompt=summarizer_system_prompt,
-        max_new_tokens=512
-    )
-    history_mgr = HistoryManager(summarizer=summarizer_llm)
-    executor = Executor()
-    agent = Agent(
-        role_description=manager_system_prompt,
-        model=manager_llm,
-        history_mgr=history_mgr
-    )
-
+    """
+    console.print("[bold green]Starting MCP-based HPC Manager Agent[/]")
     while True:
         task = console.input("[bold]Enter a task[/] (or 'quit' to exit): ")
         if not task or task.strip().lower() in ('quit', 'exit'):
             console.print("[bold red]Goodbye![/]")
             break
-        
-        agent.step(user_input=task)
 
-        while agent.action.type is not ActionType.FINISH:
-            obs = executor.execute(agent.action)
-            agent.observation = obs.result
-            console.print(Rule("[bold blue]Observation[/]"))
-            console.print(agent.observation)
-            history_mgr.add(f"Observation: {agent.observation}")
-            agent.step()
+        response = mcp_client.step(task)
+        while True:
+            method = response.method
+            params = response.params
+            if method == "finish":
+                summary = params.get("result", "")
+                console.print(Rule("[bold green]Workflow Summary"))
+                console.print(Panel(summary))
+                break
+
+            action = Action(type=ActionType[method.upper()], payload=params)
+            obs = executor.execute(action)
+
+            response = mcp_client.send_observation(obs.result)
 
         console.print(Rule("[bold green]==== Task complete ===="))
-        history_mgr.show_history()
-
+        
 if __name__ == "__main__":
-    main_react()
+    main()
 

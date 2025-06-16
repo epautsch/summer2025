@@ -1,0 +1,199 @@
+import asyncio
+import json
+import os
+import shutil
+from contextlib import AsyncExitStack
+from typing import Any
+
+from tansformers import AutoProcessor, Gemma3ForConditionalGeneration
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+torch_dtype = "auto"
+model_id = "google/gemma-3-27b-it"
+model = Gemma3ForConditionalGeneration.from_pretrained(
+    model_id,
+    attn_implementation="eager",
+    device_map="auto"
+    torch_dtype=torch.bfloat16,
+).eval()
+processor = AutoProcessor.from_pretrained(model_id)
+
+class Configuration:
+    @staticmethod
+    def load_config(file_path: str) -> dict[str, Any]:
+        with open(file_path, "r") as f:
+            return json.load(f)
+
+class Server:
+    def __init__(self, name: str, config: dict[str, Any]):
+        self.name = name
+        self.config = config
+        self.session: ClientSession | None = None
+        self.exit_stack: AsyncExitStack = AsyncExitStack()
+
+    async def initialize(self) -> None:
+        command = (
+            shutil.which(self.config["command"]) or self.config["command"]
+        )
+        server_params = StdioServerParameters(
+            command=command,
+            args=self.config.get("args", []),
+            env={**os.environ, **self.config.get("env", {})},
+        )
+        stdio_transport = await self.exit_stack.enter_async_context(
+            stdio_client(server_params)
+        )
+        read, write = stdio_transport
+        session = await self.exit_stack.enter_async_context(
+            ClientSession(read, write)
+        )
+        await session.initialize()
+        self.session = session
+
+    async def list_tools(self) -> list[Any]:
+        if not self.session:
+            raise RuntimeError(f"Server {self.name} not initialized")
+        resp = await self.session.list_tools()
+        tools = []
+        for kind, entries in resp:
+            if kind == "tools":
+                tools.extend(
+                    Tool(tool.name, tool.description, tool.inputSchema)
+                    for tool in entries
+                )
+        return tools
+
+    async def execute_tool(self, tool_name: str, args: dict[str, Any]) -> Any:
+        if not self.session:
+            raise RuntimeError(f"Server {self.name} not initialized")
+        logging.info(f"Executing tool {tool_name} with {args}")
+        return await self.session.call_tool(tool_name, args)
+
+    async def cleanup(self) -> None:
+        await self.exit_stack.aclose()
+        self.session = None
+
+class Tool:
+    def __init__(self, name: str, description: str, input_schema: dict[str, Any]):
+        self.name = name
+        self.description = description
+        self.input_schema = input_schema
+
+    def format_for_llm(self) -> str:
+        parts = [f"Tool: {self.name}", f"Description: {self.description}"]
+        props = self.input_schema.get("properties", {})
+        required = set(self.input_schema.get("required", []))
+        if props:
+            parts.append("Arguments:")
+            for pname, info in props.items():
+                desc = info.get("description", "No description")
+                req = " (required)" if pname in required else ""
+                parts.append(f"- {pname}: {desc}{req}")
+        return "\n".join(parts)
+
+class LocalLLMClient:
+    def __init__(self, model, processor, max_new_tokens: int = 2048):
+        self.model = model
+        self.processor = processor
+        self.max_new_tokens = max_new_tokens
+
+    def get_response(self, messages: list[dict[str, str]]) -> str:
+        payload = [
+            {"role": "system", "content": messages[0]["content"]},
+            *[{"role": m["role"], "content": m["content"]} for m in messages[1:]]
+        ]
+        tokenized = self.processor.apply_chat_template(
+            payload,
+            add_generation_prompt=True,
+            tokenize=True,
+            return_dict=True,
+            return_tensors="pt",
+        ).to(self.model.device, dtype=torch.bfloat16)
+        input_len = tokenized["input_ids"].shape[-2]
+        with torch.inference_mode():
+            out = self.model.generate(
+                **tokenized,
+                max_new_tokens=self.max_new_tokens,
+                do_sample=False,
+            )
+        gen = out[0][input_len:]
+        text = self.processor.decode(gen, skip_special_tokens=True)
+        text = re.sub(r"```[\s\S]*?```", lambda m: m.group(0).strip('```'), text)
+        return text.strip()
+
+class ChatSession:
+    def __init__(self, servers: list[Server], llm: LocalLLMClient):
+        self.server = servers
+        self.llm = llm
+
+    async def cleanup_servers(self) -> None:
+        for server in reversed(self.servers):
+            await server.cleanup()
+
+    async def process_llm_response(self, llm_response: str) -> str:
+        try:
+            tool_call = json.loads(llm_response)
+            if "tool" in tool_call and "arguments" in tool_call:
+                for server in self.servers:
+                    tools = await server.list_tools()
+                    if any(t.name == tool_call["tool"] for t in tools):
+                        result = await server.execute_tool(
+                            tool_call["tool"], tool_call["arguments"]
+                        )
+                        return json.dumps(result)
+            return llm_response
+        except json.JSONDecodeError:
+            return llm_response
+
+    async def start(self) -> None:
+        for srv in self.servers:
+            await srv.initialized()
+        all_tools = []
+        for srv in self.servers:
+            all_tools.extend(await srv.list_tools())
+        tools_desc = "\n\n".join(t.format_for_llm() for t in all_tools)
+
+        system_msg = (
+            "You are a helpful assistant with access to these tools:\n\n"
+            + tools_desc
+            + "\n\nUse tools by returning a JSON object {\"tool\":..., \"arguments\":...}."
+        )
+        messages = [{"role": "system", "content": system_msg}]
+
+        while True:
+            user_input = input("You: ").strip()
+            if user_input.lower() in ("quit", "exit"):
+                break
+
+            messages.append({"role": "user", "content": user_input})
+            llm_resp = self.llm.get_response(messages)
+            print("Assistant:", llm_resp)
+
+            tool_result = await self.process_llm_response(llm_resp)
+            if tool_result != llm_resp:
+                messages.append({"role": "assistant", "content": llm_resp})
+                messages.append({"role": "system", "content": tool_result})
+                final = self.llm.get_response(messages)
+                print("Final:", final)
+                messages.append({"role": "assistant", "content": final})
+            else:
+                messages.append({"role": "assistant", "content": llm_resp})
+
+        await self.cleanup_servers()
+
+async def main() -> None:
+    config = Configuration.load_config("servers_config.json")
+    servers = [Server(name, cfg) for name, cfg in config.get("mcpServers", {}).items()]
+    llm_client = LocalLLMClient(model, processor)
+    session = ChatSession(servers, llm_client)
+    await session.start()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
