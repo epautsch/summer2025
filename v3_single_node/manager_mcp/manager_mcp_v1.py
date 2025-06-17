@@ -156,17 +156,16 @@ class ChatSession:
     async def process_llm_response(self, llm_response: str) -> str:
         try:
             tool_call = json.loads(llm_response)
-            if "tool" in tool_call and "arguments" in tool_call:
+            if "tool" in tool_call:
+                args = tool_call.get("arguments", {})
                 for server in self.servers:
                     tools = await server.list_tools()
                     if any(t.name == tool_call["tool"] for t in tools):
-                        result = await server.execute_tool(
-                            tool_call["tool"], tool_call["arguments"]
+                        result = await server.execute_tool(tool_call["tool"], args)
+                        return json.dumps(
+                            result,
+                            default=lambda o: o.__dict__ if hasattr(o, '__dict__') else str(o),
                         )
-                        try:
-                            return json.dumps(result, default=lambda o: o.__dict__ if hasattr(o, '__dict__') else str(o))
-                        except Exception:
-                            return json.dumps(str(result))
             return llm_response
         except json.JSONDecodeError:
             return llm_response
