@@ -1,11 +1,14 @@
 import asyncio
 import json
+import logging
 import os
+import re
 import shutil
 from contextlib import AsyncExitStack
 from typing import Any
 
-from tansformers import AutoProcessor, Gemma3ForConditionalGeneration
+import torch
+from transformers import AutoProcessor, Gemma3ForConditionalGeneration
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -19,7 +22,7 @@ model_id = "google/gemma-3-27b-it"
 model = Gemma3ForConditionalGeneration.from_pretrained(
     model_id,
     attn_implementation="eager",
-    device_map="auto"
+    device_map="auto",
     torch_dtype=torch.bfloat16,
 ).eval()
 processor = AutoProcessor.from_pretrained(model_id)
@@ -104,18 +107,27 @@ class LocalLLMClient:
         self.max_new_tokens = max_new_tokens
 
     def get_response(self, messages: list[dict[str, str]]) -> str:
-        payload = [
-            {"role": "system", "content": messages[0]["content"]},
-            *[{"role": m["role"], "content": m["content"]} for m in messages[1:]]
-        ]
+        formatted = []
+        for m in messages:
+            formatted.append({
+                "role": m["role"],
+                "content": [
+                    {"type": "text", "text": m["content"]}
+                ]
+            })
+        
+        print(f"BEFORE TOKENIZATION ***\n{formatted}")
+
         tokenized = self.processor.apply_chat_template(
-            payload,
+            formatted,
             add_generation_prompt=True,
             tokenize=True,
             return_dict=True,
             return_tensors="pt",
         ).to(self.model.device, dtype=torch.bfloat16)
-        input_len = tokenized["input_ids"].shape[-2]
+
+        input_ids = tokenized["input_ids"]
+        input_len = input_ids.shape[-1]
         with torch.inference_mode():
             out = self.model.generate(
                 **tokenized,
@@ -124,12 +136,17 @@ class LocalLLMClient:
             )
         gen = out[0][input_len:]
         text = self.processor.decode(gen, skip_special_tokens=True)
-        text = re.sub(r"```[\s\S]*?```", lambda m: m.group(0).strip('```'), text)
-        return text.strip()
+        text = re.sub(r"^json\s*", "", text, flags=re.IGNORECASE).lstrip()
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        return "\n".join(lines).strip()
 
 class ChatSession:
     def __init__(self, servers: list[Server], llm: LocalLLMClient):
-        self.server = servers
+        self.servers = servers
         self.llm = llm
 
     async def cleanup_servers(self) -> None:
@@ -146,14 +163,17 @@ class ChatSession:
                         result = await server.execute_tool(
                             tool_call["tool"], tool_call["arguments"]
                         )
-                        return json.dumps(result)
+                        try:
+                            return json.dumps(result, default=lambda o: o.__dict__ if hasattr(o, '__dict__') else str(o))
+                        except Exception:
+                            return json.dumps(str(result))
             return llm_response
         except json.JSONDecodeError:
             return llm_response
 
     async def start(self) -> None:
         for srv in self.servers:
-            await srv.initialized()
+            await srv.initialize()
         all_tools = []
         for srv in self.servers:
             all_tools.extend(await srv.list_tools())
@@ -161,29 +181,52 @@ class ChatSession:
 
         system_msg = (
             "You are a helpful assistant with access to these tools:\n\n"
-            + tools_desc
-            + "\n\nUse tools by returning a JSON object {\"tool\":..., \"arguments\":...}."
+            f"{tools_desc}\n"
+            "Choose the appropriate tool based on the user's question. "
+            "If no tool is needed, reply directly.\n\n"
+            "IMPORTANT: When you need to use a tool, you must ONLY respond with "
+            "the exact JSON object format below, nothing else:\n"
+            "{\n"
+            '   "tool": "tool-name",\n'
+            '   "arguments": {\n'
+            '       "argument-name": "value"\n'
+            "   }\n"
+            "}\n\n"
+            "After receiving a tool's response:\n"
+            "1. Transform the raw data into a natural, conversational response\n"
+            "2. Keep responses concise but informative\n"
+            "3. Focus on the most relevant information\n"
+            "4. Use appropriate context from the user's question\n"
+            "5. Avoid simply repeating the raw data\n\n"
+            "Please use only the tools that are explicitly defined above."
         )
         messages = [{"role": "system", "content": system_msg}]
 
         while True:
-            user_input = input("You: ").strip()
+            user_input = input("> ").strip()
             if user_input.lower() in ("quit", "exit"):
                 break
 
             messages.append({"role": "user", "content": user_input})
-            llm_resp = self.llm.get_response(messages)
-            print("Assistant:", llm_resp)
+            resp = self.llm.get_response(messages)
+            print("Assistant:", resp)
 
-            tool_result = await self.process_llm_response(llm_resp)
-            if tool_result != llm_resp:
-                messages.append({"role": "assistant", "content": llm_resp})
-                messages.append({"role": "system", "content": tool_result})
+            tool_result = await self.process_llm_response(resp)
+
+            print(f'RESP ***\n{resp}')
+            print(f'TOOL_RESULT ***\n{tool_result}')
+            if tool_result != resp:
+                print('*** resp did NOT equal tool_result ***',
+                      '\nENTERING TOOL EXECUTION')
+                messages.append({"role": "assistant", "content": resp})
+                messages.append({"role": "user", "content": tool_result})
                 final = self.llm.get_response(messages)
                 print("Final:", final)
                 messages.append({"role": "assistant", "content": final})
             else:
-                messages.append({"role": "assistant", "content": llm_resp})
+                print('*** resp DID equal tool_result ***',
+                      '\nNOT EXECUTING TOOL')
+                messages.append({"role": "assistant", "content": resp})
 
         await self.cleanup_servers()
 
