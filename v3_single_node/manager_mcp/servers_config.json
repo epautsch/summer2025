@@ -3,6 +3,25 @@
 		"sqlite": {
 			"command": "uvx",
 			"args": ["mcp-server-sqlite", "--db-path", "./test.db"]
+		},
+		"git": {
+			"command": "uvx",
+			"args": ["mcp-server-git"]
+		},
+		"filesystem": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@modelcontextprotocol/server-filesystem",
+				"/home/epautsch/summer2025/agentic_prototype/v3_single_node/manager_mcp/test"
+			]
+		},
+		"sequential-thinking": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@modelcontextprotocol/server-sequential-thinking"
+			]
 		}
 	}
 }

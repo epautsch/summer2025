@@ -12,11 +12,24 @@ from transformers import AutoProcessor, Gemma3ForConditionalGeneration
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from rich.console import Console
+from rich.traceback import install
+from rich.panel import Panel
+from rich.rule import Rule
+from rich.syntax import Syntax
+from rich.status import Status
 
+
+# Init rich console
+console = Console()
+install()
+
+# logging setup
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+# model and preocessor setup
 torch_dtype = "auto"
 model_id = "google/gemma-3-27b-it"
 model = Gemma3ForConditionalGeneration.from_pretrained(
@@ -28,12 +41,14 @@ model = Gemma3ForConditionalGeneration.from_pretrained(
 processor = AutoProcessor.from_pretrained(model_id)
 
 class Configuration:
+    # load up server config from JSON file
     @staticmethod
     def load_config(file_path: str) -> dict[str, Any]:
         with open(file_path, "r") as f:
             return json.load(f)
 
 class Server:
+    # Manages an mcp server process and sessions
     def __init__(self, name: str, config: dict[str, Any]):
         self.name = name
         self.config = config
@@ -58,6 +73,7 @@ class Server:
         )
         await session.initialize()
         self.session = session
+        console.log(f"[green]Initialized server {self.name}[/]")
 
     async def list_tools(self) -> list[Any]:
         if not self.session:
@@ -75,14 +91,16 @@ class Server:
     async def execute_tool(self, tool_name: str, args: dict[str, Any]) -> Any:
         if not self.session:
             raise RuntimeError(f"Server {self.name} not initialized")
-        logging.info(f"Executing tool {tool_name} with {args}")
+        console.log(f"[cyan]Executing tool[/] {tool_name} with args {args}")
         return await self.session.call_tool(tool_name, args)
 
     async def cleanup(self) -> None:
         await self.exit_stack.aclose()
         self.session = None
+        console.log(f"[red]Cleaned up server {self.name}[/]")
 
 class Tool:
+    # metadata wrapper for server-exposed tool
     def __init__(self, name: str, description: str, input_schema: dict[str, Any]):
         self.name = name
         self.description = description
@@ -101,6 +119,7 @@ class Tool:
         return "\n".join(parts)
 
 class LocalLLMClient:
+    # handles chat completions using the local model
     def __init__(self, model, processor, max_new_tokens: int = 2048):
         self.model = model
         self.processor = processor
@@ -116,24 +135,23 @@ class LocalLLMClient:
                 ]
             })
         
-        print(f"BEFORE TOKENIZATION ***\n{formatted}")
+        with console.status("Generating response...", spinner="dots"):
+            tokenized = self.processor.apply_chat_template(
+                formatted,
+                add_generation_prompt=True,
+                tokenize=True,
+                return_dict=True,
+                return_tensors="pt",
+            ).to(self.model.device, dtype=torch.bfloat16)
 
-        tokenized = self.processor.apply_chat_template(
-            formatted,
-            add_generation_prompt=True,
-            tokenize=True,
-            return_dict=True,
-            return_tensors="pt",
-        ).to(self.model.device, dtype=torch.bfloat16)
-
-        input_ids = tokenized["input_ids"]
-        input_len = input_ids.shape[-1]
-        with torch.inference_mode():
-            out = self.model.generate(
-                **tokenized,
-                max_new_tokens=self.max_new_tokens,
-                do_sample=False,
-            )
+            input_ids = tokenized["input_ids"]
+            input_len = input_ids.shape[-1]
+            with torch.inference_mode():
+                out = self.model.generate(
+                    **tokenized,
+                    max_new_tokens=self.max_new_tokens,
+                    do_sample=False,
+                )
         gen = out[0][input_len:]
         text = self.processor.decode(gen, skip_special_tokens=True)
         text = re.sub(r"^json\s*", "", text, flags=re.IGNORECASE).lstrip()
@@ -145,6 +163,7 @@ class LocalLLMClient:
         return "\n".join(lines).strip()
 
 class ChatSession:
+    # orchestrates the repl loop, llm, and tool calls
     def __init__(self, servers: list[Server], llm: LocalLLMClient):
         self.servers = servers
         self.llm = llm
@@ -202,29 +221,23 @@ class ChatSession:
         messages = [{"role": "system", "content": system_msg}]
 
         while True:
-            user_input = input("> ").strip()
+            user_input = console.input("[bold cyan]> [/]").strip()
             if user_input.lower() in ("quit", "exit"):
+                console.print("[bold red]Goodbye![/]")
                 break
 
             messages.append({"role": "user", "content": user_input})
             resp = self.llm.get_response(messages)
-            print("Assistant:", resp)
+            console.print(Panel(resp, title="Assistant"))
 
             tool_result = await self.process_llm_response(resp)
-
-            print(f'RESP ***\n{resp}')
-            print(f'TOOL_RESULT ***\n{tool_result}')
             if tool_result != resp:
-                print('*** resp did NOT equal tool_result ***',
-                      '\nENTERING TOOL EXECUTION')
                 messages.append({"role": "assistant", "content": resp})
                 messages.append({"role": "user", "content": tool_result})
                 final = self.llm.get_response(messages)
-                print("Final:", final)
+                console.print(Panel(final, title="Assistant"))
                 messages.append({"role": "assistant", "content": final})
             else:
-                print('*** resp DID equal tool_result ***',
-                      '\nNOT EXECUTING TOOL')
                 messages.append({"role": "assistant", "content": resp})
 
         await self.cleanup_servers()
