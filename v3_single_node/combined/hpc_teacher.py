@@ -62,9 +62,12 @@ def save_to_file(text: str, filename: str):
         f.write(text.strip() + "\n")
 
 class ActionType(Enum):
-    ANALYZE = auto()
+    CREATE_LESSON_PLAN = auto()
+    EXPLAIN_CONCEPT = auto()
+    QUIZ_USER = auto()
     CODE = auto()
     SYSTEM_CALL = auto()
+    GENERATE_HOMEWORK = auto()
     FINISH = auto()
 
 @dataclass
@@ -85,7 +88,9 @@ class HistoryManager:
     def add(self, entry: str):
         self.history.append(entry)
         if len(self.get_full().split()) > self.word_limit:
+            console.print("[red][DEBUG SUMMARIZER][/]")
             summary = self.summarizer.generate(self.get_full())
+            console.print("[red][DEBUG SUMMARIZER END][/]\n")
             self.history = [f"History summary: {summary}"]
 
     def get_full(self) -> str:
@@ -103,13 +108,32 @@ class HistoryManager:
 class Executor:
     def execute(self, action: Action) -> Observation:
         console.log(f"[bold cyan]Executing action[/] → {action.type.name}")
-        if action.type == ActionType.SYSTEM_CALL:
-            if isinstance(action.payload, str):
-                cmd = action.payload
-            else:
-                cmd = action.payload.get('cmd', '')
-            output = run_shell(cmd)
-            return Observation(result=output)
+        p = action.payload
+
+        if action.type == ActionType.CREATE_LESSON_PLAN:
+            # payload: {"topic": ..., "objectives": [...[}
+            title = f"Lesson Plan: {p['topic']}"
+            body = "\n".join(f"- {o}" for o in p["objectives"])
+            console.print(Panel(body, title=title))
+            return Observation(result="Displayed leeson plan.")
+
+        elif action.type == ActionType.EXPLAIN_CONCEPT:
+            # payload: {"concept": ..., "explanation": "..."}
+            title = f"Concept: {p['concept']}"
+            console.print(Panel(p["explanation"], title=title))
+
+            examples = p.get("examples", [])
+            if examples:
+                table = Table(title="Examples")
+                table.add_column("Examples", style="italic")
+                for ex in examples:
+                    table.add_row(ex)
+                console.print(table)
+            return Observation(result="Displayed explanation + examples.")
+
+        elif action.type == ActionType.QUIZ_USER:
+            concole.log("[green]Quiz questions generated.[/]")
+            return Observation(result="Quiz questions generated.")
 
         elif action.type == ActionType.CODE:
             code = action.payload.get('input', '')
@@ -121,9 +145,17 @@ class Executor:
             save_to_file(code, fname)
             return Observation(result=f"Saved code to {fname}")
 
-        elif action.type == ActionType.ANALYZE:
-            console.log("[green]Analysis complete.[/]")
-            return Observation(result="Analysis complete.")
+        elif action.type == ActionType.SYSTEM_CALL:
+            if isinstance(action.payload, str):
+                cmd = action.payload
+            else:
+                cmd = action.payload.get('cmd', '')
+            output = run_shell(cmd)
+            return Observation(result=output)
+
+        elif action.type == ActionType.GENERATE_HOMEWORK:
+            console.log("[green]Homework generated.[/]")
+            return Observation(result="Homework generated.")
 
         elif action.type == ActionType.FINISH:
             console.log(f"[bold magenta]Workflow finished:[/] {action.payload}")
@@ -145,6 +177,10 @@ class ManagerModel:
             {"role": "system", "content": [{"type": "text", "text": self.system_prompt}]},
             {"role": "user", "content": [{"type": "text", "text": user_prompt}]}
         ]
+        # DEBUG print
+        console.print(f"[red][DEBUG PAYLOAD][/]\n{payload}")
+        console.print(f"[red][DEBUG PAYLOAD END][/]\n")
+
         with console.status("Generating response...", spinner="dots"):
             raw = self.processor.apply_chat_template(
                 payload,
@@ -163,7 +199,11 @@ class ManagerModel:
                 )
             gen_ids = out[0][input_len:]
             decoded = self.processor.decode(gen_ids, skip_special_tokens=True)
-            return strip_markdown_fences(decoded)
+            output = strip_markdown_fences(decoded)
+            console.print("[red][DEBUG MANAGERMODEL GEN][/]")
+            console.print(output)
+            console.print("[red][DEBUG MANAGERMODEL GEN END][/]\n")
+            return output
 
 @dataclass
 class LessonPlanner:
@@ -175,7 +215,15 @@ class LessonPlanner:
         "MPI: Hello World and Basic Point-to-Point Communication",
         "SYCL: Simple Kernel for Array Multiplication"
     ])
+    lesson_topic: str = ""
+    lesson_objectives: List[str] = field(default_factory=list)
 
+    def set_plan(self, topic: str, objectives: List[str]) -> None:
+        self.lesson_topic = topic
+        self.lesson_objectives = objectives
+
+     # MARKED for removal
+    """
     def suggest_topics(self) -> List[str]:
         prompt = (
             "List 5 beginner-friendly HPC topics across different backends (CUDA, OpenMP, "
@@ -184,14 +232,23 @@ class LessonPlanner:
         resp = self.llm.generate(prompt)
         topics = [t.strip() for t in resp.splitlines() if t.strip()]
         return topics or self.default_topics
+    """
 
-    def create_outline(self, topic: str) -> List[str]:
-        prompt = (
-            f"Create a 5-step teaching outline for the topic: {topic}, including "
-            "conceptual and hands-on coding steps."
+    def create_lesson_plan(self, topic: str) -> List[str]:
+        return (
+            f"The user has chosen to learn about {topic}. "
+            "Create the lesson plan as JSON with keys 'thought', 'action', and 'payload'."
         )
-        resp = self.llm.generate(prompt)
-        return [line.strip() for line in resp.splitlines() if line.strip()]
+
+    def explain_concept(self, concept: str) -> str:
+        return f"Explain the concept: {concept}"
+
+    def answer_question(self, concept: str, question: str) -> str:
+        return (
+            f"The learner is asking a follow-up about '{concept}':\n"
+            f"\"{question}\"\n"
+            "Please answer clearly and concisely."
+        )
 
 @dataclass
 class Quizzer:
@@ -267,36 +324,115 @@ class SessionManager:
     planner: LessonPlanner
     quizzer: Quizzer
     tutor: CodeTutor
+    executor: Executor
     history: HistoryManager
+
+    def _call_llm(self, user_prompt: str) -> str:
+        full_context = []
+
+        hist = self.history.get_full()
+        if hist:
+            full_context.append(hist)
+        full_context.append(user_prompt)
+        joined = "\n".join(full_context)
+
+        raw = self.planner.llm.generate(joined)
+
+        self.history.add(f"UserPrompt: {user_prompt}")
+        self.history.add(f"SystemResponse: {raw}")
+
+        return raw
+
+    def _extract_explanation_data(self, raw: str) -> Tuple[str, List[str]]:
+        try:
+            doc = json.loads(strip_markdown_fences(raw))
+            payload = doc.get("payload", {})
+            explanation = payload.get("explanation", raw)
+            examples = payload.get("examples", [])
+            return explanation, examples
+        except Exception:
+            return raw, []
 
     def run(self):
         console.print("[bold green]👋 Welcome to the HPC Tutor![/]")
-
-        topics = self.planner.suggest_topics()
-        for i, t in enumerate(topics, 1): console.print(f"{i}. {t}")
+        
+        # topic selection
+        topics = self.planner.default_topics
+        for idx, topic in enumerate(self.planner.default_topics, start=1):
+            console.print(f"{idx}. {topic}")
         choice = Prompt.ask("Choose a topic by number or type a new one")
         try:
             topic = topics[int(choice) - 1]
         except Exception:
             topic = choice
+        console.print(f"[red][DEBUG TOPIC CHOICE] You chose {topic}[/].")
+        console.print(f"[red][DEBUG TOPIC CHOICE END][/]\n")
+        
+        # create and set lesson plan
+        lesson_plan_prompt = self.planner.create_lesson_plan(topic)
+        lesson_plan_raw = self._call_llm(lesson_plan_prompt)
+        lesson_plan_json = json.loads(strip_markdown_fences(lesson_plan_raw))
+            # TODO need better error parsing here for failed conditional
+        if lesson_plan_json["action"] == "CREATE_LESSON_PLAN":
+            real_topic = lesson_plan_json["payload"]["topic"]
+            objectives = lesson_plan_json["payload"]["objectives"]
+            self.planner.set_plan(topic, objectives)
+            console.print(f"[green] ✅ Saved lesson plan for \"{real_topic}\" with {len(objectives)} objectives.[/]\n")
+            action = Action(
+                type=ActionType.CREATE_LESSON_PLAN,
+                payload={"topic": real_topic, "objectives": objectives}
+            )
+            obs = self.executor.execute(action)
 
-        backend = Prompt.ask(
-            "Select implementation backend [cuda, sycl, openmp, mpi, cpp]", default="cpp"
-        )
-        ext_map = {"cuda":"cu", "sycl":"cpp", "openmp":"c", "mpi":"c", "cpp":"cpp"}
-        ext = ext_map.get(backend.lower(), "cpp")
-        self.tutor.ext = ext
-        self.tutor.evaluator.set_backend(backend, ext)
+            self.history.add(f"Observation: {obs.result}")
+        else:
+            console.print("[red] ✖ Unexpected response—couldn't create lesson plan.[/]")
 
-        outline = self.planner.create_outline(topic)
-        console.print(Panel("\n".join(outline), title=f"Lesson Outline: {topic} ({backend})"))
+        # loop through objectives
+        for obj in objectives:
+            console.print(Rule(f"📖 {obj}"))
+            
+            # generate explanation
+            explanation_prompt = self.planner.explain_concept(obj)
+            explanation_raw = self._call_llm(explanation_prompt)
+            # parse json for explanation
+            explanation, examples = self._extract_explanation_data(explanation_raw)
 
-        for step in outline:
-            console.print(Rule(f"📖 {step}"))
+            action = Action(
+                type=ActionType.EXPLAIN_CONCEPT,
+                payload={
+                    "concept": obj,
+                    "explanation": explanation,
+                    "examples": examples,
+                }
+            )
+            obs = self.executor.execute(action)
+            self.history.add(f"Observation: {obs.result}")
 
-            explanation = self.planner.llm.generate(f"Explain the concept: {step}")
-            console.print(Panel(explanation, title="Concept Explanation"))
+            # ask user for followup explanations before continuing
+            while True:
+                user_q = Prompt.ask(
+                    "\nHave any questions? Type your question, or 'next' to continue"
+                ).strip()
+                if user_q.lower() in ("next", "n"):
+                    break
 
+                answer_prompt = self.planner.answer_question(obj, user_q)
+                answer_raw = self._call_llm(answer_prompt)
+                answer, examples = self._extract_explanation_data(answer_raw)
+
+                action = Action(
+                    type=ActionType.EXPLAIN_CONCEPT,
+                    payload={
+                        "concept": obj,
+                        "explanation": answer,
+                        "examples": examples,
+                    }
+                )
+                obs = self.executor.execute(action)
+                self.history.add(f"Observation: {obs.result}")
+            
+            """
             questions = self.quizzer.generate_questions(step)
             for qa in questions:
                 user_ans = Prompt.ask(qa['q'])
@@ -325,7 +461,7 @@ class SessionManager:
                 console.print("[bold green]🎉 Code ran successfully![/]")
             else:
                 console.print(Panel(result, title="Errors / Output"))
-
+            """
         console.print(Rule("🏁 Lesson Complete!"))
         summary = self.planner.llm.generate(f"Summarize the lesson on {topic} using {backend} and key takeaways.")
         console.print(Panel(summary, title="Lesson Summary"))
@@ -407,7 +543,7 @@ def main_react():
     )
     summarizer_system_prompt = (
         "You are a concise summarizer. Given a long conversation between a Manager "
-        "and sub-agents, produce a short summary (100-150 words) that captures the key "
+        "and sub-agents, produce a short summary (200-250 words) that captures the key "
         "decisions (Thought, Action, Observation) *and* retains the original task context."
     )
 
@@ -415,14 +551,14 @@ def main_react():
         model=llm_model,
         processor=processor,
         system_prompt=manager_system_prompt,
-        max_new_tokens=2048
+        max_new_tokens=8192
     )
 
     summarizer_llm = ManagerModel(
         model=llm_model,
         processor=processor,
         system_prompt=summarizer_system_prompt,
-        max_new_tokens=512
+        max_new_tokens=1024
     )
     history_mgr = HistoryManager(summarizer=summarizer_llm)
     executor = Executor()
@@ -431,7 +567,7 @@ def main_react():
     quizzer = Quizzer(llm=manager_llm)
     evaluator = CodeEvaluator()
     tutor = CodeTutor(llm=manager_llm, evaluator=evaluator)
-    session = SessionManager(planner=planner, quizzer=quizzer, tutor=tutor, history=history_mgr)
+    session = SessionManager(planner=planner, quizzer=quizzer, tutor=tutor, executor=executor, history=history_mgr)
 
     session.run()
 
