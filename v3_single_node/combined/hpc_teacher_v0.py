@@ -83,18 +83,21 @@ class Observation:
 class HistoryManager:
     summarizer: Any
     history: List[str] = field(default_factory=list)
-    word_limit: int = 400
+    word_limit: int = 800
 
     def add(self, entry: str):
         self.history.append(entry)
-        if len(self.get_full().split()) > self.word_limit:
+        
+    def get_full(self) -> str:
+        full_text = "\n".join(self.history)
+
+        if len(full_text.split()) > self.word_limit:
             console.print("[red][DEBUG SUMMARIZER][/]")
-            summary = self.summarizer.generate(self.get_full())
+            summary = self.summarizer.generate(full_text)
             console.print("[red][DEBUG SUMMARIZER END][/]\n")
             self.history = [f"History summary: {summary}"]
-
-    def get_full(self) -> str:
-        return "\n".join(self.history)
+            return self.history[0]
+        return full_text
 
     def show_history(self):
         table = Table(title="Agent History")
@@ -199,11 +202,10 @@ class ManagerModel:
                 )
             gen_ids = out[0][input_len:]
             decoded = self.processor.decode(gen_ids, skip_special_tokens=True)
-            output = strip_markdown_fences(decoded)
             console.print("[red][DEBUG MANAGERMODEL GEN][/]")
-            console.print(output)
+            console.print(decoded)
             console.print("[red][DEBUG MANAGERMODEL GEN END][/]\n")
-            return output
+            return decoded
 
 @dataclass
 class LessonPlanner:
@@ -327,26 +329,34 @@ class SessionManager:
     executor: Executor
     history: HistoryManager
 
-    def _call_llm(self, user_prompt: str) -> str:
-        full_context = []
+    def _call_llm(self, user_prompt: str,
+                  schema_hint: str = "Your last response was not valid JSON. Please reply with valid JSON.",
+                  max_retries: int = 3) -> dict:
 
         hist = self.history.get_full()
-        if hist:
-            full_context.append(hist)
-        full_context.append(user_prompt)
-        joined = "\n".join(full_context)
+        prefix = (hist + "\n") if hist else ""
 
-        raw = self.planner.llm.generate(joined)
+        full_prompt = prefix + user_prompt
+        last_err = None
 
-        self.history.add(f"UserPrompt: {user_prompt}")
-        self.history.add(f"SystemResponse: {raw}")
+        for attempt in range(1, max_retries + 1):
+            raw = self.planner.llm.generate(full_prompt)
+            self.history.add(f"UserPrompt (JSON): {user_prompt}")
+            self.history.add(f"LLMResponse (raw JSON): {raw}")
 
-        return raw
+            try:
+                data = json.loads(strip_markdown_fences(raw))
+                return data
+            except json.JSONDecodeError as e:
+                last_err = e
+                console.print(f"[red]Warning:[/] JSON parse failed attempt {attempt}): {e}")
+                full_prompt += f"\n{schema_hint}"
+
+        raise last_err
 
     def _extract_explanation_data(self, raw: str) -> Tuple[str, List[str]]:
         try:
-            doc = json.loads(strip_markdown_fences(raw))
-            payload = doc.get("payload", {})
+            payload = raw.get("payload", {})
             explanation = payload.get("explanation", raw)
             examples = payload.get("examples", [])
             return explanation, examples
@@ -370,8 +380,7 @@ class SessionManager:
         
         # create and set lesson plan
         lesson_plan_prompt = self.planner.create_lesson_plan(topic)
-        lesson_plan_raw = self._call_llm(lesson_plan_prompt)
-        lesson_plan_json = json.loads(strip_markdown_fences(lesson_plan_raw))
+        lesson_plan_json = self._call_llm(lesson_plan_prompt)
             # TODO need better error parsing here for failed conditional
         if lesson_plan_json["action"] == "CREATE_LESSON_PLAN":
             real_topic = lesson_plan_json["payload"]["topic"]
