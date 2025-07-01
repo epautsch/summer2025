@@ -79,5 +79,3 @@ manager_system_prompt = (
         decisions (Thought, Action, Observation) *and* retains the original task context.
         """
     )
-
-

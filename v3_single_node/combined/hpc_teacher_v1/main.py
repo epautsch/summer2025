@@ -20,14 +20,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Prompt
 
 
-######### rich stuff ##########
-
 console = Console()
 install()
 
 
 def main_react():
-        manager_llm = ManagerModel(
+    manager_llm = ManagerModel(
         model=llm_model,
         processor=processor,
         system_prompt=manager_system_prompt,
