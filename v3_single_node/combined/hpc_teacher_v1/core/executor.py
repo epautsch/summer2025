@@ -1,3 +1,8 @@
+from dataclasses import dataclass
+
+from core.action import Action, ActionType
+
+
 @dataclass
 class Executor:
     def execute(self, action: Action) -> Observation:
