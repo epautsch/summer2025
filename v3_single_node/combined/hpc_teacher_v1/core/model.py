@@ -1,14 +1,14 @@
-model_id = "google/gemma-3-27b-it"
-llm_model = Gemma3ForConditionalGeneration.from_pretrained(
-    model_id,
-    attn_implementation="eager",
-    device_map="auto",
-    torch_dtype=torch.bfloat16
-).eval()
-processor=AutoProcessor.from_pretrained(model_id)
+from dataclasses import dataclass
+from typing import Any
+
+import torch
+from rich.console import Console
+
+console = Console()
+
 
 @dataclass
-class ManagerModel:
+class LLMClient:
     model: Any
     processor: Any
     system_prompt: str
@@ -20,10 +20,10 @@ class ManagerModel:
             {"role": "user", "content": [{"type": "text", "text": user_prompt}]}
         ]
         # DEBUG print
-        console.print(f"[red][DEBUG PAYLOAD][/]\n{payload}")
-        console.print(f"[red][DEBUG PAYLOAD END][/]\n")
+        console.print("[blue]▶️ LLMClient.generate() payload:[/]\n", payload)
 
         with console.status("Generating response...", spinner="dots"):
+            # tokenize & run
             raw = self.processor.apply_chat_template(
                 payload,
                 add_generation_prompt=True,
@@ -31,19 +31,16 @@ class ManagerModel:
                 return_dict=True,
                 return_tensors="pt"
             ).to(self.model.device, dtype=torch.bfloat16)
+
             input_len = raw["input_ids"].shape[-1]
             with torch.inference_mode():
                 out = self.model.generate(
                     **raw,
                     max_new_tokens=self.max_new_tokens,
-                    #cache_implementation="offloaded",
+                    # cache_implementation="offloaded",
                     do_sample=False
                 )
+            # decode
             gen_ids = out[0][input_len:]
             decoded = self.processor.decode(gen_ids, skip_special_tokens=True)
-            console.print("[red][DEBUG MANAGERMODEL GEN][/]")
-            console.print(decoded)
-            console.print("[red][DEBUG MANAGERMODEL GEN END][/]\n")
             return decoded
-
-

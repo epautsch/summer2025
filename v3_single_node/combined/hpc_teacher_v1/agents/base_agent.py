@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from rich.console import Console
 
-from core.model import ManagerModel
+from core.model import LLMClient
 from core.history_manager import HistoryManager
 from core.action import Action, ActionType
 from core.utilities import strip_markdown_fences
@@ -18,7 +18,7 @@ class BaseAgent:
     Base class for all agents, encapsulating common LLM interaction
     and history management.
     """
-    model: ManagerModel
+    model: LLMClient
     history: HistoryManager
 
     def _generate(self, prompt: str) -> str:

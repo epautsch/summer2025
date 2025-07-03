@@ -1,54 +1,78 @@
-import json
-import re
-import subprocess
-import os
-from enum import Enum, auto
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Tuple
-
 import torch
-from transformers import AutoProcessor, Gemma3ForConditionalGeneration
-
+from transformers import Gemma3ForConditionalGeneration, AutoProcessor
 from rich.console import Console
 from rich.traceback import install
-from rich.status import Status
-from rich.panel import Panel
-from rich.rule import Rule
-from rich.syntax import Syntax
-from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.prompt import Prompt
 
+from core.model import LLMClient
+from core.history_manager import HistoryManager
+from core.executor import Executor
+from agents import SessionAgent, SessionState, LesssonPlannerAgent, ExplainerAgent
+from prompts import (LESSON_PLANNER_PROMPT,
+                     SESSION_SYSTEM_PROMPT,
+                     EXPLAINER_PROMPT,
+                     SUMMARIZER_PROMPT)
 
 console = Console()
 install()
 
 
-def main_react():
-    manager_llm = ManagerModel(
-        model=llm_model,
+def main():
+    model_id = "google/gemma-3-27b-it"
+    hf_model = Gemma3ForConditionalGeneration.from_pretrained(
+        model_id,
+        attn_implementation="eager",
+        device_map="auto",
+        torch_dtype=torch.bfloat16
+    ).eval()
+    processor = AutoProcessor.from_pretrained(model_id)
+
+    session_llm = LLMClient(
+        model=hf_model,
         processor=processor,
-        system_prompt=manager_system_prompt,
-        max_new_tokens=8192
+        system_prompt=SESSION_SYSTEM_PROMPT,
+        max_new_tokens=2048
     )
 
-    summarizer_llm = ManagerModel(
-        model=llm_model,
+    planner_llm = LLMClient(
+        model=hf_model,
         processor=processor,
-        system_prompt=summarizer_system_prompt,
+        system_prompt=LESSON_PLANNER_PROMPT,
         max_new_tokens=1024
     )
-    history_mgr = HistoryManager(summarizer=summarizer_llm)
+
+    explainer_llm = LLMClient(
+        model=hf_model,
+        processor=processor,
+        system_prompt=EXPLAINER_PROMPT,
+        max_new_tokens=1024
+    )
+
+    summarizer_llm = LLMClient(
+        model=hf_model,
+        processor=processor,
+        system_prompt=SUMMARIZER_PROMPT,
+        max_new_tokens=1024
+    )
+
+    session_history = HistoryManager(summarizer=summarizer_llm)
+    planner_history = HistoryManager(summarizer=summarizer_llm)
+    explainer_history = HistoryManager(summarizer=summarizer_llm)
+
+    planner = LesssonPlannerAgent(model=planner_llm, history=planner_history)
+    explainer = ExplainerAgent(model=explainer_llm, history=explainer_history)
+
     executor = Executor()
 
-    planner = LessonPlanner(llm=manager_llm)
-    quizzer = Quizzer(llm=manager_llm)
-    evaluator = CodeEvaluator()
-    tutor = CodeTutor(llm=manager_llm, evaluator=evaluator)
-    session = SessionManager(planner=planner, quizzer=quizzer, tutor=tutor, executor=executor, history=history_mgr)
+    session = SessionAgent(
+        llm=session_llm,
+        history=session_history,
+        executor=executor,
+        planner=planner,
+        explainer=explainer,
+    )
 
     session.run()
 
-if __name__ == "__main__":
-    main_react()
 
+if __name__ == "__main__":
+    main()
