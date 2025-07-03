@@ -14,11 +14,6 @@ console = Console()
 
 
 @dataclass
-class Observation:
-    result: str
-
-
-@dataclass
 class SessionManager:
     planner: LessonPlannerAgent
     explainer: ExplainerAgent
