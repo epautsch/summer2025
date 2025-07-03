@@ -15,17 +15,17 @@ class LLMClient:
     max_new_tokens: int
 
     def generate(self, user_prompt: str) -> str:
-        payload = [
+        input = [
             {"role": "system", "content": [{"type": "text", "text": self.system_prompt}]},
             {"role": "user", "content": [{"type": "text", "text": user_prompt}]}
         ]
         # DEBUG print
-        console.print("[blue]▶️ LLMClient.generate() payload:[/]\n", payload)
+        console.print("[blue]▶️  LLMClient.generate() input:[/]\n", input)
 
         with console.status("Generating response...", spinner="dots"):
             # tokenize & run
             raw = self.processor.apply_chat_template(
-                payload,
+                input,
                 add_generation_prompt=True,
                 tokenize=True,
                 return_dict=True,
@@ -43,4 +43,5 @@ class LLMClient:
             # decode
             gen_ids = out[0][input_len:]
             decoded = self.processor.decode(gen_ids, skip_special_tokens=True)
+            console.print("[red]▶️  LLMClient.generate() output:[/]\n", decoded)
             return decoded
