@@ -8,9 +8,7 @@ from rich.console import Console
 from agents.base_agent import BaseAgent
 from agents.lesson_planner_agent import LessonPlannerAgent
 from agents.explainer_agent import ExplainerAgent
-from core.model import LLMClient
 from core.executor import Executor
-from core.history_manager import HistoryManager
 from core.action import Action, ActionType
 
 console = Console()
@@ -130,7 +128,16 @@ class SessionAgent(BaseAgent):
         """
         from rich.prompt import Prompt
 
-        console.print("[bold green]Starting interactie session...[/]")
+        console.print("[bold green]👋 Welcome to the HPC Tutor![/]")
+        topics = self.planner.default_topics()
+        for idx, topic in enumerate(topics, start=1):
+            console.print(f"[bold blue]{idx}. {topic}[/]")
+        choice = Prompt.ask("Choose a topic by number or type a new one")
+        try:
+            topic = topics[int(choice) - 1]
+        except Exception:
+            topic = choice.strip()
+        console.print(f"[bold blue]Selected topic: {topic}[/]")
 
         while self.state != SessionState.FINISHED:
             user_input = Prompt.ask("Your input")
