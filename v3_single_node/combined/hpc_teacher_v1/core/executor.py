@@ -24,7 +24,7 @@ class Executor:
             title = f"Lesson Plan: {p['topic']}"
             body = "\n".join(f"- {o}" for o in p["objectives"])
             console.print(Panel(body, title=title))
-            return Observation(result="Displayed leeson plan.")
+            return Observation(result="Displayed lesson plan.")
 
         elif action.type == ActionType.EXPLAIN_CONCEPT:
             # payload: {"concept": ..., "explanation": "..."}

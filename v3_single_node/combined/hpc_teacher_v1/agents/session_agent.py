@@ -140,7 +140,8 @@ class SessionAgent(BaseAgent):
         console.print(f"[bold blue]Selected topic: {topic}[/]")
 
         action = self.planner.create_plan_action(topic)
-        self.handle(action)
+        obs = self.executor.execute(action)
+        self.history.add(f"Observation: {obs.result}")
 
         while self.state != SessionState.FINISHED:
             user_input = Prompt.ask("Your input")
