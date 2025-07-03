@@ -92,9 +92,9 @@ class HistoryManager:
         full_text = "\n".join(self.history)
 
         if len(full_text.split()) > self.word_limit:
-            console.print("[red][DEBUG SUMMARIZER][/]")
+           # console.print("[red][DEBUG SUMMARIZER][/]")
             summary = self.summarizer.generate(full_text)
-            console.print("[red][DEBUG SUMMARIZER END][/]\n")
+           # console.print("[red][DEBUG SUMMARIZER END][/]\n")
             self.history = [f"History summary: {summary}"]
             return self.history[0]
         return full_text
@@ -181,8 +181,8 @@ class ManagerModel:
             {"role": "user", "content": [{"type": "text", "text": user_prompt}]}
         ]
         # DEBUG print
-        console.print(f"[red][DEBUG PAYLOAD][/]\n{payload}")
-        console.print(f"[red][DEBUG PAYLOAD END][/]\n")
+       # console.print(f"[red][DEBUG PAYLOAD][/]\n{payload}")
+       # console.print(f"[red][DEBUG PAYLOAD END][/]\n")
 
         with console.status("Generating response...", spinner="dots"):
             raw = self.processor.apply_chat_template(
@@ -202,9 +202,9 @@ class ManagerModel:
                 )
             gen_ids = out[0][input_len:]
             decoded = self.processor.decode(gen_ids, skip_special_tokens=True)
-            console.print("[red][DEBUG MANAGERMODEL GEN][/]")
-            console.print(decoded)
-            console.print("[red][DEBUG MANAGERMODEL GEN END][/]\n")
+           # console.print("[red][DEBUG MANAGERMODEL GEN][/]")
+           # console.print(decoded)
+           # console.print("[red][DEBUG MANAGERMODEL GEN END][/]\n")
             return decoded
 
 @dataclass

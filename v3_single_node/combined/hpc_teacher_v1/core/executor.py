@@ -1,6 +1,16 @@
+import os
 from dataclasses import dataclass
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.table import Table
+
 from core.action import Action, ActionType
+from core.utilities import save_to_file, run_shell
+from core.observation import Observation
+
+console = Console()
 
 
 @dataclass
@@ -31,7 +41,7 @@ class Executor:
             return Observation(result="Displayed explanation + examples.")
 
         elif action.type == ActionType.QUIZ_USER:
-            concole.log("[green]Quiz questions generated.[/]")
+            console.log("[green]Quiz questions generated.[/]")
             return Observation(result="Quiz questions generated.")
 
         elif action.type == ActionType.CODE:
@@ -51,4 +61,3 @@ class Executor:
                 cmd = action.payload.get('cmd', '')
             output = run_shell(cmd)
             return Observation(result=output)
-

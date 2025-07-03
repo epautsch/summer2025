@@ -1,4 +1,4 @@
-summarizer_system_prompt = (
+SUMMARIZER_PROMPT = (
     """
     You are a concise summarizer. Given a long conversation between a Manager
     and sub-agents, produce a short summary (200-250 words) that captures the

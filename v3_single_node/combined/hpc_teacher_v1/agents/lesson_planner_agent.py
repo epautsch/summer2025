@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from core.action import Action, ActionType
-from base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 
 console = Console()
 

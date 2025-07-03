@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from core.action import Action, ActionType
-from base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 
 
 @dataclass

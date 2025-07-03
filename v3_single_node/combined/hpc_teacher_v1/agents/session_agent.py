@@ -1,11 +1,13 @@
 import json
 from dataclasses import dataclass
 from typing import Any
-from Enum import Enum, auto
+from enum import Enum, auto
 
 from rich.console import Console
 
-from agents import BaseAgent, LessonPlannerAgent, ExplainerAgent
+from agents.base_agent import BaseAgent
+from agents.lesson_planner_agent import LessonPlannerAgent
+from agents.explainer_agent import ExplainerAgent
 from core.model import LLMClient
 from core.executor import Executor
 from core.history_manager import HistoryManager
@@ -29,8 +31,6 @@ class SessionAgent(BaseAgent):
     """
     Manages the overall session, coordinating between different agents.
     """
-    llm:        LLMClient
-    history:    HistoryManager
     executor:   Executor
     planner:    LessonPlannerAgent
     explainer:  ExplainerAgent

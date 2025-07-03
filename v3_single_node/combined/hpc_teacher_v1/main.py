@@ -6,11 +6,13 @@ from rich.traceback import install
 from core.model import LLMClient
 from core.history_manager import HistoryManager
 from core.executor import Executor
-from agents import SessionAgent, SessionState, LesssonPlannerAgent, ExplainerAgent
-from prompts import (LESSON_PLANNER_PROMPT,
-                     SESSION_SYSTEM_PROMPT,
-                     EXPLAINER_PROMPT,
-                     SUMMARIZER_PROMPT)
+from agents.session_agent import SessionAgent, SessionState
+from agents.lesson_planner_agent import LessonPlannerAgent
+from agents.explainer_agent import ExplainerAgent
+from prompts.lesson_planner_prompt import LESSON_PLANNER_PROMPT
+from prompts.session_system_prompt import SESSION_SYSTEM_PROMPT
+from prompts.explainer_prompt import EXPLAINER_PROMPT
+from prompts.summarizer_prompt import SUMMARIZER_PROMPT
 
 console = Console()
 install()
@@ -58,13 +60,13 @@ def main():
     planner_history = HistoryManager(summarizer=summarizer_llm)
     explainer_history = HistoryManager(summarizer=summarizer_llm)
 
-    planner = LesssonPlannerAgent(model=planner_llm, history=planner_history)
+    planner = LessonPlannerAgent(model=planner_llm, history=planner_history)
     explainer = ExplainerAgent(model=explainer_llm, history=explainer_history)
 
     executor = Executor()
 
     session = SessionAgent(
-        llm=session_llm,
+        model=session_llm,
         history=session_history,
         executor=executor,
         planner=planner,
