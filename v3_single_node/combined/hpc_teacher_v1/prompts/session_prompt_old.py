@@ -1,4 +1,4 @@
-manager_system_prompt = (
+session_system_prompt = (
         """
         You are an HPC tutor agent responsible for teaching high-perforance computing (HPC) concepts
         interactively by guiding a user through lessons, providing quizzes, evaluating answers, assigning

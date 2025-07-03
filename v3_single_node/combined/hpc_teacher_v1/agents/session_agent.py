@@ -72,7 +72,7 @@ class SessionAgent(BaseAgent):
             concept = action.payload.get("concept", "")
             is_question = action.payload.get("is_question", False)
             question = action.payload.get("question", "")
-            if is_questions:
+            if is_question:
                 sub = self.explainer.answer_question_action(concept, question)
             else:
                 sub = self.explainer.explain_concept_action(concept)
