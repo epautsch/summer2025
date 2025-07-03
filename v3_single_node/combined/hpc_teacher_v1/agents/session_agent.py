@@ -129,7 +129,7 @@ class SessionAgent(BaseAgent):
         from rich.prompt import Prompt
 
         console.print("[bold green]👋 Welcome to the HPC Tutor![/]")
-        topics = self.planner.default_topics()
+        topics = self.planner.default_topics
         for idx, topic in enumerate(topics, start=1):
             console.print(f"[bold blue]{idx}. {topic}[/]")
         choice = Prompt.ask("Choose a topic by number or type a new one")
@@ -138,6 +138,9 @@ class SessionAgent(BaseAgent):
         except Exception:
             topic = choice.strip()
         console.print(f"[bold blue]Selected topic: {topic}[/]")
+
+        action = self.planner.create_plan_action(topic)
+        self.handle(action)
 
         while self.state != SessionState.FINISHED:
             user_input = Prompt.ask("Your input")
