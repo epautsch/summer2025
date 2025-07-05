@@ -135,8 +135,8 @@ class SessionAgent(BaseAgent):
         """
         Update the agent's own state variables when certain actions occur.
         """
-        if action.type == ActionType.CREATE_LESSON_PLAN:
-            self.state = SessionState.PLANNING
+        if action.type == ActionType.INITIALIZE:
+            self.state = SessionState.EXPLAINING
         elif action.type == ActionType.NEXT_OBJECTIVE:
             self.state = SessionState.EXPLAINING
         elif action.type == ActionType.EXPLAIN_CONCEPT:
