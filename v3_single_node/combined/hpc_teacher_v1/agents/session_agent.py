@@ -32,7 +32,7 @@ class SessionAgent(BaseAgent):
 
     lesson_topic: str = ""
     lesson_objectives: List[str] = field(default_factory=list)
-    current_objective: str = ""
+    current_index: int = 0
     default_topics: List[str] = field(default_factory=lambda: [
         "Introduction to Parallel Computing Concepts (shared memory vs. distributed memory)",
         "OpenMP: Parallelizing Loops with Directives",
@@ -51,11 +51,9 @@ class SessionAgent(BaseAgent):
         """
         prompt = self._build_state_prompt(user_input)
         raw = self.model.generate(prompt)
-        #self.history.add(f"Session Prompt: {prompt}")
-        #self.history.add(f"Session Response: {raw}")
+        self.history.add(f"Session Prompt: {prompt}")
+        self.history.add(f"Session Response: {raw}")
 
-        #data = json.loads(raw)
-        #action = Action(type=ActionType[data["action"]], payload=data.get("payload", {}))
         action = self._parse_action(raw, expect=list(ActionType))
 
         self._transition_state(action)
@@ -70,17 +68,22 @@ class SessionAgent(BaseAgent):
             # Initialize the session with a lesson plan
             self.lesson_topic = action.payload.get("topic", "")
             self.lesson_objectives = action.payload.get("objectives", [])
-            self.current_objective = self.lesson_objectives[0] if self.lesson_objectives else ""
+            #self.current_objective = self.lesson_objectives[0] if self.lesson_objectives else ""
             obs = self.executor.execute(action)
 
-        elif action.type == ActionType. NEXT_OBJECTIVE:
-            sub = self.planner.next_objective_action()
-            obs = self.executor.execute(sub)
-
-        elif action.type == ActionType.EXPLAIN_CONCEPT:
+        elif action.type == ActionType.CALL_EXPLAINER:
             concept = action.payload.get("concept", "")
             is_question = action.payload.get("is_question", False)
             question = action.payload.get("question", "")
+
+            try:
+                idx = self.lesson_objectives.index(concept)
+            except ValueError:
+                console.print(f"[bold red]Error: Concept '{concept}' not found in lesson objectives.[/]")
+                return None
+            else:
+                self.current_index = idx
+
             if is_question:
                 sub = self.explainer.answer_question_action(concept, question)
             else:
@@ -108,7 +111,7 @@ class SessionAgent(BaseAgent):
             f"CURRENT STATE: {self.state.name}\n"
             f"TOPIC: {self.lesson_topic}\n"
             f"OBJECTIVES: {self.lesson_objectives}\n"
-            f"CURRENT OBJECTIVE: {self.current_objective}\n"
+            f"CURRENT OBJECTIVE: {self.lesson_objectives[self.current_index]}\n"
             f"HISTORY: {self.history.get_full()}\n"
             f"USER INPUT: {user_input}\n"
             "Choose the next action based on the information above."
@@ -116,27 +119,13 @@ class SessionAgent(BaseAgent):
 
         return state_prompt
 
-        #plan_summary = (
-        #    f"TOPIC: {self.planner.lesson_topic}\n"
-        #    f"OBJECTIVES: {len(self.planner.lesson_objectives)} total\n"
-        #    f"CURRENT: {self.planner.lesson_objectives[self.planner.current_index]}"
-        #)
-        #valid = ", ".join([a.name for a in ActionType])
-        #return (
-            #f"CURRENT STATE: {self.state.name}\n"
-            #f"TOPIC:\n"
-            #f"USER INPUT: {user_input}\n"
-            #f"You may choose from the following actions: {valid}\n"
-            #"Reply *only* with a JSON object {\"action\": ..., \"payload\": ...}."
-        #)
-
     def _transition_state(self, action: Action):
         """
         Update the agent's own state variables when certain actions occur.
         """
         if action.type == ActionType.INITIALIZE:
             self.state = SessionState.INIT
-        elif action.type == ActionType.NEXT_OBJECTIVE:
+        elif action.type == ActionType.CALL_EXPLAINER:
             self.state = SessionState.EXPLAINING
         elif action.type == ActionType.EXPLAIN_CONCEPT:
             self.state = SessionState.EXPLAINING

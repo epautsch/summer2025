@@ -43,9 +43,16 @@ SESSION_SYSTEM_PROMPT = (
     2. **CALL_EXPLAINER**
         - First explanation or follow‐up question.
         - Payload for first‐pass:
-            { "concept": "<objective_text>", "is_question": false }
+            {
+              "concept": "<objective_being_explained_from_lesson_plan>",
+              "is_question": false
+            }
         - Payload for follow‐up:
-            { "concept": "<objective_text>", "is_question": true, "question": "<learner_question>" }
+            {
+              "concept": "<objective_being_explained_from_lesson_plan>",
+              "is_question": true,
+              "question": "<learner_question>"
+            }
 
     3. **QUIZ_USER**
         - After explanations, to generate multiple‐choice questions.
