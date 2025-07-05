@@ -8,6 +8,7 @@ EXPLAINER_PROMPT = (
     {
       "action": "EXPLAIN_CONCEPT",
       "payload": {
+        "concept": "<concept_or_question_string_being_explained>",
         "explanation": "<detailed_paragraph_explanation>",
         "examples": [
           "<concise_example_or_analogy_1>",
