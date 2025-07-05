@@ -111,7 +111,7 @@ class SessionAgent(BaseAgent):
             f"CURRENT STATE: {self.state.name}\n"
             f"TOPIC: {self.lesson_topic}\n"
             f"OBJECTIVES: {self.lesson_objectives}\n"
-            f"CURRENT OBJECTIVE: {self.lesson_objectives[self.current_index]}\n"
+            f"CURRENT OBJECTIVE: {self.lesson_objectives[self.current_index] if self.lesson_objectives else None}\n"
             f"HISTORY: {self.history.get_full()}\n"
             f"USER INPUT: {user_input}\n"
             "Choose the next action based on the information above."
