@@ -21,22 +21,24 @@ SESSION_SYSTEM_PROMPT = (
       {
         "thought":  "<brief_reasoning_about_what_to_do_next>",
         "action":   "<ACTION_NAME>",
-        "payload":  { /* parameters for that action */ }
+        "payload":  { /* parameters for that action */ },
       }
 
     **Valid actions and payload schemas**:
 
     1. **INITIALIZE**
-       • To generate a new lesson plan based on a user‐suggested topic.
-       • Payload:
-         {
-           "topic": "<user_topic_string>",
-              "objectives": [
-                 "<objective_1_description>",
-                 "<objective_2_description>",
-                 // ... up to 5 objectives
-              ]
-         }
+        • To generate a new lesson plan based on a user‐suggested topic.
+        • Payload:
+            {
+                "action": "initialize",
+                "topic": "<user_topic_string>",
+                "objectives": [
+                    "<objective_1_description>",
+                    "<objective_2_description>",
+                    // ... up to 5 objectives
+                ],
+                "message": "<Message to user saying that the lesson plan is above and asking if they want anything changed or if they're ready to start>"
+            }
 
     2. **CALL_EXPLAINER**
        • First explanation or follow‐up question.
