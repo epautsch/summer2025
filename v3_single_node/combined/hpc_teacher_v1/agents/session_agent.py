@@ -43,7 +43,7 @@ class SessionAgent(BaseAgent):
         3) Update state if necessary.
         """
         prompt = self._build_state_prompt(user_input)
-        raw = self.llm.generate(prompt)
+        raw = self.model.generate(prompt)
         self.history.add(f"Session Prompt: {prompt}")
         self.history.add(f"Session Response: {raw}")
 
