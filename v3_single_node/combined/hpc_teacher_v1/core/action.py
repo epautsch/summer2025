@@ -4,6 +4,7 @@ from typing import Dict, Any
 
 
 class ActionType(Enum):
+    # Used by SessionAgent
     INITIALIZE = auto()
     CALL_EXPLAINER = auto()
     CALL_QUIZER = auto()
@@ -11,6 +12,9 @@ class ActionType(Enum):
     SYSTEM_CALL = auto()
     GENERATE_HOMEWORK = auto()
     FINISH = auto()
+
+    # Used by ExplainerAgent
+    EXPLAIN_CONCEPT = auto()
 
 
 @dataclass
