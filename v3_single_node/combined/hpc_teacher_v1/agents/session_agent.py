@@ -146,7 +146,7 @@ class SessionAgent(BaseAgent):
         topics = self.default_topics
         for idx, topic in enumerate(topics, start=1):
             console.print(f"[bold blue]{idx}. {topic}[/]")
-        choice = Prompt.ask("Enter a number or type a new topic:")
+        choice = Prompt.ask("Enter a number or type a new topic")
         try:
             topic = topics[int(choice) - 1]
         except Exception:
