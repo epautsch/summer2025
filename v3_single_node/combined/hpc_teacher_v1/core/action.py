@@ -4,7 +4,7 @@ from typing import Dict, Any
 
 
 class ActionType(Enum):
-    CREATE_LESSON_PLAN = auto()
+    INITIALIZE = auto()
     NEXT_OBJECTIVE = auto()
     PREVIOUS_OBJECTIVE = auto()
     EXPLAIN_CONCEPT = auto()

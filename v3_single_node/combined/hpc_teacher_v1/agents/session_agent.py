@@ -1,12 +1,11 @@
 import json
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import List, Any
 from enum import Enum, auto
 
 from rich.console import Console
 
 from agents.base_agent import BaseAgent
-from agents.lesson_planner_agent import LessonPlannerAgent
 from agents.explainer_agent import ExplainerAgent
 from core.executor import Executor
 from core.action import Action, ActionType
@@ -16,7 +15,6 @@ console = Console()
 
 class SessionState(Enum):
     INIT = auto()
-    PLANNING = auto()
     EXPLAINING = auto()
     QUIZZING = auto()
     CODING = auto()
@@ -28,11 +26,20 @@ class SessionState(Enum):
 class SessionAgent(BaseAgent):
     """
     Manages the overall session, coordinating between different agents.
-    """
+    """ 
     executor:   Executor
-    planner:    LessonPlannerAgent
     explainer:  ExplainerAgent
 
+    lesson_topic: str = ""
+    lesson_objectives: List[str] = field(default_factory=list)
+    current_objective: str = ""
+    default_topics: List[str] = field(default_factory=lambda: [
+        "Introduction to Parallel Computing Concepts (shared memory vs. distributed memory)",
+        "OpenMP: Parallelizing Loops with Directives",
+        "CUDA: Vector Addition with Thrust",
+        "MPI: Hello World and Basic Point-to-Point Communication",
+        "SYCL: Simple Kernel for Array Multiplication"
+    ])
     state:      SessionState = SessionState.INIT
 
     def step(self, user_input: str) -> Action:
@@ -44,8 +51,8 @@ class SessionAgent(BaseAgent):
         """
         prompt = self._build_state_prompt(user_input)
         raw = self.model.generate(prompt)
-        self.history.add(f"Session Prompt: {prompt}")
-        self.history.add(f"Session Response: {raw}")
+        #self.history.add(f"Session Prompt: {prompt}")
+        #self.history.add(f"Session Response: {raw}")
 
         #data = json.loads(raw)
         #action = Action(type=ActionType[data["action"]], payload=data.get("payload", {}))
@@ -59,9 +66,13 @@ class SessionAgent(BaseAgent):
         Dispatch an Action to the appropriate sub-agent or executor.
         Returns the Observation or result of execution.
         """
-        if action.type == ActionType.CREATE_LESSON_PLAN:
-            sub = self.planner.create_plan_action(action.payload.get("topic", ""))
-            obs = self.executor.execute(sub)
+        if action.type == ActionType.INITIALIZE:
+            # Initialize the session with a lesson plan
+            self.lesson_topic = action.payload.get("topic", "")
+            self.lesson_objectives = action.payload.get("objectives", [])
+            self.current_objective = self.lesson_objectives[0] if self.lesson_objectives else ""
+            #sub = self.planner.create_plan_action(action.payload.get("topic", ""))
+            obs = self.executor.execute(action)
 
         elif action.type == ActionType. NEXT_OBJECTIVE:
             sub = self.planner.next_objective_action()
@@ -93,19 +104,32 @@ class SessionAgent(BaseAgent):
         """
         Build a prompt that includes the current session state and user input.
         """
-        plan_summary = (
-            f"TOPIC: {self.planner.lesson_topic}\n"
-            f"OBJECTIVES: {len(self.planner.lesson_objectives)} total\n"
-            f"CURRENT: {self.planner.lesson_objectives[self.planner.current_index]}"
-        )
-        valid = ", ".join([a.name for a in ActionType])
-        return (
+
+        state_prompt = (
             f"CURRENT STATE: {self.state.name}\n"
-            f"{plan_summary}\n"
+            f"TOPIC: {self.lesson_topic}\n"
+            f"OBJECTIVES: {self.lesson_objectives}\n"
+            f"CURRENT OBJECTIVE: {self.current_objective}\n"
+            f"HISTORY: {self.history.get_full()}\n"
             f"USER INPUT: {user_input}\n"
-            f"You may choose from the following actions: {valid}\n"
-            "Reply *only* with a JSON object {\"action\": ..., \"payload\": ...}."
+            "Choose the next action based on the information above."
         )
+
+        return state_prompt
+
+        #plan_summary = (
+        #    f"TOPIC: {self.planner.lesson_topic}\n"
+        #    f"OBJECTIVES: {len(self.planner.lesson_objectives)} total\n"
+        #    f"CURRENT: {self.planner.lesson_objectives[self.planner.current_index]}"
+        #)
+        #valid = ", ".join([a.name for a in ActionType])
+        #return (
+            #f"CURRENT STATE: {self.state.name}\n"
+            #f"TOPIC:\n"
+            #f"USER INPUT: {user_input}\n"
+            #f"You may choose from the following actions: {valid}\n"
+            #"Reply *only* with a JSON object {\"action\": ..., \"payload\": ...}."
+        #)
 
     def _transition_state(self, action: Action):
         """
@@ -130,19 +154,23 @@ class SessionAgent(BaseAgent):
         from rich.prompt import Prompt
 
         console.print("[bold green]👋 Welcome to the HPC Tutor![/]")
-        topics = self.planner.default_topics
+        console.print("Please choose a topic to start your session.")
+        topics = self.default_topics
         for idx, topic in enumerate(topics, start=1):
             console.print(f"[bold blue]{idx}. {topic}[/]")
-        choice = Prompt.ask("Choose a topic by number or type a new one")
+        choice = Prompt.ask("Enter a number or type a new topic:")
         try:
             topic = topics[int(choice) - 1]
         except Exception:
             topic = choice.strip()
         console.print(f"[bold blue]Selected topic: {topic}[/]")
 
-        action = self.planner.create_plan_action(topic)
-        obs = self.executor.execute(action)
-        self.history.add(f"Observation: {obs.result}")
+        #action = self.planner.create_plan_action(topic)
+        #obs = self.executor.execute(action)
+        #self.history.add(f"Observation: {obs.result}")
+
+        action = self.step(f"Initialize lesson plan for topic: {topic}")
+        self.handle(action)
 
         while self.state != SessionState.FINISHED:
             user_input = Prompt.ask("Your input")

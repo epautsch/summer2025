@@ -19,12 +19,12 @@ class Executor:
         console.log(f"[bold cyan]Executing action[/] → {action.type.name}")
         p = action.payload
 
-        if action.type == ActionType.CREATE_LESSON_PLAN:
+        if action.type == ActionType.INITIALIZE:
             # payload: {"topic": ..., "objectives": [...[}
             title = f"Lesson Plan: {p['topic']}"
             body = "\n".join(f"- {o}" for o in p["objectives"])
             console.print(Panel(body, title=title))
-            return Observation(result="Displayed lesson plan.")
+            return Observation(result=f"Lesson plan created for {p['topic']}.")
 
         elif action.type == ActionType.EXPLAIN_CONCEPT:
             # payload: {"concept": ..., "explanation": "..."}
