@@ -37,9 +37,7 @@ SESSION_SYSTEM_PROMPT = (
                     "<objective_2_description>",
                     // ... up to 5 objectives
                 ],
-                "message": "<Message to user saying that the lesson plan is above and asking if they want anything changed or if they're ready to start>"
             }
-        - There is no need to show the whole lesson plan in the response, it will already be printed in the console. Just ask the user if they want to change anything or if they are ready to start the session.
 
     2. **CALL_EXPLAINER**
        - First explanation or follow‐up question.

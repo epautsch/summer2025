@@ -24,7 +24,7 @@ class Executor:
             title = f"Lesson Plan: {p['topic']}"
             body = "\n".join(f"- {o}" for o in p["objectives"])
             console.print(Panel(body, title=title))
-            console.print(p["message"])
+            console.print("Would you like to make any changes to the plan, or are you ready to start?")
             return Observation(result=f"Lesson plan created for {p['topic']}.")
 
         elif action.type == ActionType.EXPLAIN_CONCEPT:
