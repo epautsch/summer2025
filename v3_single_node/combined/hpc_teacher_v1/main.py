@@ -57,10 +57,8 @@ def main():
     )
 
     session_history = HistoryManager(summarizer=summarizer_llm)
-    planner_history = HistoryManager(summarizer=summarizer_llm)
     explainer_history = HistoryManager(summarizer=summarizer_llm)
 
-    planner = LessonPlannerAgent(model=planner_llm, history=planner_history)
     explainer = ExplainerAgent(model=explainer_llm, history=explainer_history)
 
     executor = Executor()
@@ -69,7 +67,6 @@ def main():
         model=session_llm,
         history=session_history,
         executor=executor,
-        #planner=planner,
         explainer=explainer,
     )
 

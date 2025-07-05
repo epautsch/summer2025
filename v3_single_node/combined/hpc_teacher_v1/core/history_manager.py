@@ -15,7 +15,7 @@ class HistoryManager:
 
     def add(self, entry: str):
         self.history.append(entry)
-        
+
     def get_full(self) -> str:
         full_text = "\n".join(self.history)
 
@@ -34,5 +34,3 @@ class HistoryManager:
         for i, entry in enumerate(self.history, 1):
             table.add_row(str(i), entry)
         console.print(table)
-
-
