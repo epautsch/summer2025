@@ -69,7 +69,7 @@ def main():
         model=session_llm,
         history=session_history,
         executor=executor,
-        planner=planner,
+        #planner=planner,
         explainer=explainer,
     )
 
