@@ -26,7 +26,7 @@ class SessionState(Enum):
 class SessionAgent(BaseAgent):
     """
     Manages the overall session, coordinating between different agents.
-    """ 
+    """
     executor:   Executor
     explainer:  ExplainerAgent
 
@@ -71,7 +71,6 @@ class SessionAgent(BaseAgent):
             self.lesson_topic = action.payload.get("topic", "")
             self.lesson_objectives = action.payload.get("objectives", [])
             self.current_objective = self.lesson_objectives[0] if self.lesson_objectives else ""
-            #sub = self.planner.create_plan_action(action.payload.get("topic", ""))
             obs = self.executor.execute(action)
 
         elif action.type == ActionType. NEXT_OBJECTIVE:
@@ -136,7 +135,7 @@ class SessionAgent(BaseAgent):
         Update the agent's own state variables when certain actions occur.
         """
         if action.type == ActionType.INITIALIZE:
-            self.state = SessionState.EXPLAINING
+            self.state = SessionState.INIT
         elif action.type == ActionType.NEXT_OBJECTIVE:
             self.state = SessionState.EXPLAINING
         elif action.type == ActionType.EXPLAIN_CONCEPT:
@@ -164,10 +163,6 @@ class SessionAgent(BaseAgent):
         except Exception:
             topic = choice.strip()
         console.print(f"[bold blue]Selected topic: {topic}[/]")
-
-        #action = self.planner.create_plan_action(topic)
-        #obs = self.executor.execute(action)
-        #self.history.add(f"Observation: {obs.result}")
 
         action = self.step(f"Initialize lesson plan for topic: {topic}")
         self.handle(action)

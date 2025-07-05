@@ -5,11 +5,9 @@ from typing import Dict, Any
 
 class ActionType(Enum):
     INITIALIZE = auto()
-    NEXT_OBJECTIVE = auto()
-    PREVIOUS_OBJECTIVE = auto()
-    EXPLAIN_CONCEPT = auto()
-    QUIZ_USER = auto()
-    CODE = auto()
+    CALL_EXPLAINER = auto()
+    CALL_QUIZER = auto()
+    CALL_CODER = auto()
     SYSTEM_CALL = auto()
     GENERATE_HOMEWORK = auto()
     FINISH = auto()

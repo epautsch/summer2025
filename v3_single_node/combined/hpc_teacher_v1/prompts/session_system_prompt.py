@@ -28,50 +28,51 @@ SESSION_SYSTEM_PROMPT = (
 
     1. **INITIALIZE**
         - To generate a new lesson plan based on a user‐suggested topic.
+        - Can also be used to adjust the plan if the user provides feedback.
         - Payload:
             {
-                "action": "initialize",
-                "topic": "<user_topic_string>",
-                "objectives": [
-                    "<objective_1_description>",
-                    "<objective_2_description>",
-                    // ... up to 5 objectives
-                ],
+              "action": "initialize",
+              "topic": "<user_topic_string>",
+              "objectives": [
+                "<objective_1_description>",
+                "<objective_2_description>",
+                // ... up to 5 objectives
+              ]
             }
 
     2. **CALL_EXPLAINER**
-       - First explanation or follow‐up question.
-       - Payload for first‐pass:
-         { "concept": "<objective_text>", "is_question": false }
-       - Payload for follow‐up:
-         { "concept": "<objective_text>", "is_question": true, "question": "<learner_question>" }
+        - First explanation or follow‐up question.
+        - Payload for first‐pass:
+            { "concept": "<objective_text>", "is_question": false }
+        - Payload for follow‐up:
+            { "concept": "<objective_text>", "is_question": true, "question": "<learner_question>" }
 
     3. **QUIZ_USER**
-       - After explanations, to generate multiple‐choice questions.
-       - Payload:
-         { "concept": "<most_recent_objective>" }
+        - After explanations, to generate multiple‐choice questions.
+        - Payload:
+            { "concept": "<most_recent_objective>" }
 
     4. **CODE**
-       - To generate code skeletons with TODOs.
-       - Payload:
-         { "concept": "<most_recent_objective>", "filename": "<suggested_filename.ext>" }
+        - To generate code skeletons with TODOs.
+        - Payload:
+            { "concept": "<most_recent_objective>", "filename": "<suggested_filename.ext>" }
 
     5. **NEXT_OBJECTIVE**
-       - Advance to the next objective in the current lesson plan.
-       - Payload:
-         { }  (no additional fields)
+        - Advance to the next objective in the current lesson plan.
+        - Payload:
+            { }  (no additional fields)
 
     6. **PREVIOUS_OBJECTIVE**
-       - Return to the prior objective for re‐explanation.
-       - Payload:
-         { }
+        - Return to the prior objective for re‐explanation.
+        - Payload:
+            { }
 
     7. **FINISH**
-       - Terminate the session with a summary.
-       - Payload:
-         {
-           "summary": "<brief wrap‐up message>"
-         }
+        - Terminate the session with a summary.
+        - Payload:
+            {
+              "summary": "<brief wrap‐up message>"
+            }
 
     **Important**:
 
