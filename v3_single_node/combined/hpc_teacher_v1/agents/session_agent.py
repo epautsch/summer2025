@@ -47,8 +47,9 @@ class SessionAgent(BaseAgent):
         self.history.add(f"Session Prompt: {prompt}")
         self.history.add(f"Session Response: {raw}")
 
-        data = json.loads(raw)
-        action = Action(type=ActionType[data["action"]], payload=data.get("payload", {}))
+        #data = json.loads(raw)
+        #action = Action(type=ActionType[data["action"]], payload=data.get("payload", {}))
+        action = self._parse_action(raw, expect=list(ActionType))
 
         self._transition_state(action)
         return action
