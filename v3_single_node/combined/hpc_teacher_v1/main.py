@@ -51,28 +51,28 @@ def main():
         processor = AutoTokenizer.from_pretrained(model_id)
 
     session_llm = LLMClient(
-        model=hf_model,
+        hf_model=hf_model,
         processor=processor,
         system_prompt=SESSION_SYSTEM_PROMPT,
         max_new_tokens=2048
     )
 
     explainer_llm = LLMClient(
-        model=hf_model,
+        hf_model=hf_model,
         processor=processor,
         system_prompt=EXPLAINER_PROMPT,
         max_new_tokens=1024
     )
 
     quizzer_llm = LLMClient(
-        model=hf_model,
+        hf_model=hf_model,
         processor=processor,
         system_prompt=QUIZZER_PROMPT,
         max_new_tokens=1024
     )
 
     summarizer_llm = LLMClient(
-        model=hf_model,
+        hf_model=hf_model,
         processor=processor,
         system_prompt=SUMMARIZER_PROMPT,
         max_new_tokens=1024

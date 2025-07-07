@@ -9,7 +9,7 @@ console = Console()
 
 @dataclass
 class LLMClient:
-    model: Any
+    hf_model: Any
     processor: Any
     system_prompt: str
     max_new_tokens: int
@@ -40,7 +40,7 @@ class LLMClient:
 
             input_len = raw["input_ids"].shape[-1]
             with torch.inference_mode():
-                out = self.model.generate(
+                out = self.hf_model.generate(
                     **raw,
                     max_new_tokens=self.max_new_tokens,
                     # cache_implementation="offloaded",

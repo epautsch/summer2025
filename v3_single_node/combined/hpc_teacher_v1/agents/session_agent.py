@@ -51,9 +51,9 @@ class SessionAgent(BaseAgent):
         3) Update state if necessary.
         """
         prompt = self._build_state_prompt(user_input)
-        raw = self.model.generate(prompt)
-        self.history.add(f"Session Prompt: {prompt}")
-        self.history.add(f"Session Response: {raw}")
+        raw = self._generate(prompt)
+        #self.history.add(f"Session Prompt: {prompt}")
+        #self.history.add(f"Session Response: {raw}")
 
         action = self._parse_action(raw, expect=list(ActionType))
 
@@ -91,8 +91,9 @@ class SessionAgent(BaseAgent):
                 sub = self.explainer.explain_concept_action(concept)
             obs = self.executor.execute(sub)
 
-        elif action.type == ActionType.CALL_QUIZER:
-            concept = action.payload.get("concept", "")
+        elif action.type == ActionType.CALL_QUIZZER:
+            payload = action.payload
+
             try:
                 idx = self.lesson_objectives.index(concept)
             except ValueError:
@@ -101,7 +102,13 @@ class SessionAgent(BaseAgent):
             else:
                 self.current_index = idx
 
-            sub = self.quizzer.generate_quiz_action(concept)
+            if "concept" in payload:
+                sub = self.quizzer.generate_quiz_action(payload["concept"])
+            elif "user_answer" in payload:
+                sub = self.quizzer.evaluate_quiz_answer_action(payload["user_answer"])
+            else:
+                raise ValueError("Quiz action must have either 'concept' or 'user_answer' in payload.")
+
             obs = self.executor.execute(sub)
 
         elif action.type == ActionType.FINISH:
@@ -141,7 +148,7 @@ class SessionAgent(BaseAgent):
             self.state = SessionState.INIT
         elif action.type == ActionType.CALL_EXPLAINER:
             self.state = SessionState.EXPLAINING
-        elif action.type == ActionType.CALL_QUIZER:
+        elif action.type == ActionType.CALL_QUIZZER:
             self.state = SessionState.QUIZZING
         elif action.type == ActionType.FINISH:
             self.state = SessionState.FINISHED

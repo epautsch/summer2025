@@ -56,8 +56,15 @@ SESSION_SYSTEM_PROMPT = (
 
     3. **CALL_QUIZER**
         - After explanations, to generate multiple‐choice questions.
-        - Payload:
-            { "concept": "<most_recent_objective>" }
+        - Payload for quiz generation:
+            {
+              "concept": "<most_recent_objective>"
+            }
+        - Payload for answer evaluation:
+            {
+              "user_answer": "<learner_answer_string>"
+            }
+            - The learner's answer may be a number, a string, or a combination of both.
 
     4. **CODE**
         - To generate code skeletons with TODOs.

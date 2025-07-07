@@ -5,6 +5,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
+from rich.prompt import Prompt
 
 from core.action import Action, ActionType
 from core.utilities import save_to_file, run_shell
@@ -46,7 +47,6 @@ class Executor:
             title = f"Quiz Question on {p['concept']}"
             question = p["question"]
             options = p["options"]
-            correct_index = p["correct_option_index"]
 
             table = Table(title=title)
             table.add_column("Question", style="bold")
@@ -55,6 +55,23 @@ class Executor:
             console.print(table)
 
             return Observation(result=f"Quiz generated for {p['concept']}.")
+
+        elif action.type == ActionType.EVALUATE_QUIZ_ANSWER:
+            p = action.payload
+            correct = p.get("is_correct", False)
+            feedback = p.get("feedback", "")
+
+            status = "[bold green]✔ Correct![/]" if correct else "[bold red]✘ Incorrect.[/]"
+            console.print(Panel(status, title="Quiz Result", expand=False))
+            console.print(Panel(feedback, title="Feedback", expand=False))
+
+            ready = Prompt.ask(
+                "Are you ready to continue with the lesson?",
+                choices=["yes", "no"],
+                default="yes",
+            )
+
+            return Observation(result=ready)
 
         elif action.type == ActionType.CODE:
             code = action.payload.get('input', '')
