@@ -95,7 +95,7 @@ class SessionAgent(BaseAgent):
             payload = action.payload
 
             try:
-                idx = self.lesson_objectives.index(concept)
+                idx = self.lesson_objectives.index(payload["concept"])
             except ValueError:
                 console.print(f"[bold red]Error: Concept '{concept}' not found in lesson objectives.[/]")
                 return None
