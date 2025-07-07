@@ -1,5 +1,6 @@
+import argparse
 import torch
-from transformers import Gemma3ForConditionalGeneration, AutoProcessor
+from transformers import Gemma3ForConditionalGeneration, AutoProcessor, AutoTokenizer
 from rich.console import Console
 from rich.traceback import install
 
@@ -18,15 +19,36 @@ console = Console()
 install()
 
 
+def parse_args():
+    p = argparse.ArgumentParser(
+        description="Launch the HPC Tutor with a chosen model size"
+    )
+    p.add_argument(
+        "--model-size",
+        choices=["1b", "27b"],
+        default="27b",
+        help="Select the model size to use for the session."
+    )
+    return p.parse_args()
+
+
 def main():
-    model_id = "google/gemma-3-27b-it"
+    args = parse_args()
+
+    model_id = f"google/gemma-3-{args.model_size}-it"
+    console.print(f"[bold green]Using model:[/bold green] {model_id}")
+
     hf_model = Gemma3ForConditionalGeneration.from_pretrained(
         model_id,
         attn_implementation="eager",
         device_map="auto",
         torch_dtype=torch.bfloat16
     ).eval()
-    processor = AutoProcessor.from_pretrained(model_id)
+
+    try:
+        processor = AutoProcessor.from_pretrained(model_id)
+    except OSError:
+        processor = AutoTokenizer.from_pretrained(model_id)
 
     session_llm = LLMClient(
         model=hf_model,

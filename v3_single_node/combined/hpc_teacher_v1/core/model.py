@@ -31,6 +31,12 @@ class LLMClient:
                 return_dict=True,
                 return_tensors="pt"
             ).to(self.model.device, dtype=torch.bfloat16)
+           # )
+
+            # new for 1b model
+            #for k, v in raw.items():
+            #    if isinstance(v, torch.Tensor):
+            #        raw[k] = v.to(self.model.device, dtype=torch.bfloat16)
 
             input_len = raw["input_ids"].shape[-1]
             with torch.inference_mode():
