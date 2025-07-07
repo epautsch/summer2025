@@ -17,7 +17,7 @@ class ActionType(Enum):
     EXPLAIN_CONCEPT = auto()
 
     # Used by QuizzerAgent
-    GENERATE_HOMEWORK = auto()
+    GENERATE_QUIZ = auto()
 
 
 @dataclass
