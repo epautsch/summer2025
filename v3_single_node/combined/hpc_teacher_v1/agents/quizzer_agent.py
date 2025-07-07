@@ -6,7 +6,7 @@ from agents.base_agent import BaseAgent
 
 
 @dataclass
-class QuizerAgent(BaseAgent):
+class QuizzerAgent(BaseAgent):
     """
     Agent that specializes in generating quizzes based on the current lesson topic.
     Maintains its own history and emits QUIZ actions.
