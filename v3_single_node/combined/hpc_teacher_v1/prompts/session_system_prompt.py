@@ -54,7 +54,7 @@ SESSION_SYSTEM_PROMPT = (
               "question": "<learner_question>"
             }
 
-    3. **CALL_QUIZER**
+    3. **CALL_QUIZZER**
         - After explanations, to generate multiple‐choice questions.
         - Payload for quiz generation:
             {
