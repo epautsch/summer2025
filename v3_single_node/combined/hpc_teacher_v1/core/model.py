@@ -30,7 +30,7 @@ class LLMClient:
                 tokenize=True,
                 return_dict=True,
                 return_tensors="pt"
-            ).to(self.model.device, dtype=torch.bfloat16)
+            ).to(self.hf_model.device, dtype=torch.bfloat16)
            # )
 
             # new for 1b model
