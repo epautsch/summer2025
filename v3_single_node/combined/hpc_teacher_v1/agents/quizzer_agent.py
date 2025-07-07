@@ -22,5 +22,5 @@ class QuizzerAgent(BaseAgent):
             "{ 'question': [ ... ], 'answers': [ ... ] } }."
         )
         raw = self._generate(prompt)
-        action = self._parse_action(raw, expect=[ActionType.CALL_QUIZER])
+        action = self._parse_action(raw, expect=[ActionType.GENERATE_QUIZ])
         return action
