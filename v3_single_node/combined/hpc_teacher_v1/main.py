@@ -7,12 +7,12 @@ from rich.traceback import install
 from core.model import LLMClient
 from core.history_manager import HistoryManager
 from core.executor import Executor
-from agents.session_agent import SessionAgent, SessionState
-from agents.lesson_planner_agent import LessonPlannerAgent
+from agents.session_agent import SessionAgent
 from agents.explainer_agent import ExplainerAgent
-from prompts.lesson_planner_prompt import LESSON_PLANNER_PROMPT
+from agents.quizzer_agent import QuizzerAgent
 from prompts.session_system_prompt import SESSION_SYSTEM_PROMPT
 from prompts.explainer_prompt import EXPLAINER_PROMPT
+from prompts.quizzer_prompt import QUIZZER_PROMPT
 from prompts.summarizer_prompt import SUMMARIZER_PROMPT
 
 console = Console()
@@ -57,17 +57,17 @@ def main():
         max_new_tokens=2048
     )
 
-    planner_llm = LLMClient(
-        model=hf_model,
-        processor=processor,
-        system_prompt=LESSON_PLANNER_PROMPT,
-        max_new_tokens=1024
-    )
-
     explainer_llm = LLMClient(
         model=hf_model,
         processor=processor,
         system_prompt=EXPLAINER_PROMPT,
+        max_new_tokens=1024
+    )
+
+    quizzer_llm = LLMClient(
+        model=hf_model,
+        processor=processor,
+        system_prompt=QUIZZER_PROMPT,
         max_new_tokens=1024
     )
 
@@ -80,8 +80,10 @@ def main():
 
     session_history = HistoryManager(summarizer=summarizer_llm)
     explainer_history = HistoryManager(summarizer=summarizer_llm)
+    quizzer_history = HistoryManager(summarizer=summarizer_llm)
 
     explainer = ExplainerAgent(model=explainer_llm, history=explainer_history)
+    quizzer = QuizzerAgent(model=quizzer_llm, history=quizzer_history)
 
     executor = Executor()
 
@@ -90,6 +92,7 @@ def main():
         history=session_history,
         executor=executor,
         explainer=explainer,
+        quizzer=quizzer,
     )
 
     session.run()
