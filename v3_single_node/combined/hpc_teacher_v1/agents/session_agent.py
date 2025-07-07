@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass, field
 from typing import List, Any
 from enum import Enum, auto
@@ -7,6 +6,7 @@ from rich.console import Console
 
 from agents.base_agent import BaseAgent
 from agents.explainer_agent import ExplainerAgent
+from agents.quizzer_agent import QuizzerAgent
 from core.executor import Executor
 from core.action import Action, ActionType
 
@@ -29,6 +29,7 @@ class SessionAgent(BaseAgent):
     """
     executor:   Executor
     explainer:  ExplainerAgent
+    quizzer:    QuizzerAgent
 
     lesson_topic: str = ""
     lesson_objectives: List[str] = field(default_factory=list)
@@ -90,6 +91,19 @@ class SessionAgent(BaseAgent):
                 sub = self.explainer.explain_concept_action(concept)
             obs = self.executor.execute(sub)
 
+        elif action.type == ActionType.CALL_QUIZER:
+            concept = action.payload.get("concept", "")
+            try:
+                idx = self.lesson_objectives.index(concept)
+            except ValueError:
+                console.print(f"[bold red]Error: Concept '{concept}' not found in lesson objectives.[/]")
+                return None
+            else:
+                self.current_index = idx
+
+            sub = self.quizzer.generate_quiz_action(concept)
+            obs = self.executor.execute(sub)
+
         elif action.type == ActionType.FINISH:
             obs = self.executor.execute(action)
 
@@ -127,8 +141,8 @@ class SessionAgent(BaseAgent):
             self.state = SessionState.INIT
         elif action.type == ActionType.CALL_EXPLAINER:
             self.state = SessionState.EXPLAINING
-        elif action.type == ActionType.EXPLAIN_CONCEPT:
-            self.state = SessionState.EXPLAINING
+        elif action.type == ActionType.CALL_QUIZER:
+            self.state = SessionState.QUIZZING
         elif action.type == ActionType.FINISH:
             self.state = SessionState.FINISHED
         else:

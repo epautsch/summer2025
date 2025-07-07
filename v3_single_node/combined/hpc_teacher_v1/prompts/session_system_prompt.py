@@ -54,7 +54,7 @@ SESSION_SYSTEM_PROMPT = (
               "question": "<learner_question>"
             }
 
-    3. **QUIZ_USER**
+    3. **CALL_QUIZER**
         - After explanations, to generate multiple‐choice questions.
         - Payload:
             { "concept": "<most_recent_objective>" }

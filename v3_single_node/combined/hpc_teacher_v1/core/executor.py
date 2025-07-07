@@ -41,9 +41,20 @@ class Executor:
                 console.print(table)
             return Observation(result="Displayed explanation + examples.")
 
-        elif action.type == ActionType.QUIZ_USER:
-            console.log("[green]Quiz questions generated.[/]")
-            return Observation(result="Quiz questions generated.")
+        elif action.type == ActionType.GENERATE_QUIZ:
+            # payload: {"concept": ..., "question": "...", "options": [...], "correct_option_index": ...}
+            title = f"Quiz Question on {p['concept']}"
+            question = p["question"]
+            options = p["options"]
+            correct_index = p["correct_option_index"]
+
+            table = Table(title=title)
+            table.add_column("Question", style="bold")
+            table.add_column("Options")
+            table.add_row(question, "\n".join(f"{i+1}. {opt}" for i, opt in enumerate(options)))
+            console.print(table)
+
+            return Observation(result=f"Quiz generated for {p['concept']}.")
 
         elif action.type == ActionType.CODE:
             code = action.payload.get('input', '')
