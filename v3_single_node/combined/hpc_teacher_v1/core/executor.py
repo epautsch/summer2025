@@ -83,10 +83,17 @@ class Executor:
             syntax = Syntax(code, lang, line_numbers=True)
             console.print(Panel(syntax, title=f"Generated Code → {fname}"))
 
-            todo_pat = re.compile(r"(?P<indent>\s*)#\s*TODO[:\s]*(?P<hint>.*)$")
+            todo_pat = re.compile(r"""
+                (?P<indent>\s*)
+                (?://|#)
+                \s*TODO[:\s]*
+                (?P<hint>.*)
+                $
+            """, re.VERBOSE)
+
             lines = code.splitlines()
             for i, line in enumerate(lines):
-                match = todo_pat.search(line)
+                match = todo_pat.match(line)
                 if not match:
                     continue
 
