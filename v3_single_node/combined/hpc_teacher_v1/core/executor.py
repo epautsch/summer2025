@@ -1,12 +1,11 @@
 import os
-import re
+import subprocess
 from dataclasses import dataclass
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
-from rich.prompt import Prompt
 
 from core.action import Action, ActionType
 from core.utilities import save_to_file, run_shell
@@ -83,28 +82,12 @@ class Executor:
             syntax = Syntax(code, lang, line_numbers=True)
             console.print(Panel(syntax, title=f"Generated Code → {fname}"))
 
-            todo_pat = re.compile(r"""
-                (?P<indent>\s*)
-                (?://|#)
-                \s*TODO[:\s]*
-                (?P<hint>.*)
-                $
-            """, re.VERBOSE)
+            editor = os.environ.get('EDITOR', 'vi')
+            subprocess.run([editor, fname])
 
-            lines = code.splitlines()
-            for i, line in enumerate(lines):
-                match = todo_pat.match(line)
-                if not match:
-                    continue
-
-                console.print(f"\n[bold yellow]Line {i+1} TODO:[/] {match.group('hint') or '<no hint>'}")
-                replacement = Prompt.ask("Enter code to replace TODO (just this one line)")
-                indent = match.group('indent')
-                lines[i] = indent + replacement
-
-            filled_code = "\n".join(lines)
-            syntax2 = Syntax(filled_code, lang, line_numbers=True)
-            console.print(Panel(syntax2, title=f"Completed Code → {fname}"))
+            with open(fname) as f:
+                final = f.read()
+            console.print(Panel(Syntax(final, lang, line_numbers=True), title="Your Edit"))
 
             save_to_file(code, fname)
 
