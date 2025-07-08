@@ -82,6 +82,8 @@ class Executor:
             syntax = Syntax(code, lang, line_numbers=True)
             console.print(Panel(syntax, title=f"Generated Code → {fname}"))
 
+            save_to_file(code, fname)
+
             editor = os.environ.get('EDITOR', 'vi')
             subprocess.run([editor, fname])
 
