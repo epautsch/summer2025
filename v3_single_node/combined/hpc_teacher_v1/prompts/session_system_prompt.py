@@ -45,6 +45,7 @@ SESSION_SYSTEM_PROMPT = (
             }
 
     2. **CALL_EXPLAINER**
+        - To call the agent that will explain a concept from the lesson plan.
         - First explanation or follow‐up question.
         - Payload for first‐pass:
             {
@@ -59,7 +60,7 @@ SESSION_SYSTEM_PROMPT = (
             }
 
     3. **CALL_QUIZZER**
-        - After explanations, to generate multiple‐choice questions.
+        - After explanations, to call the agent that will generate multiple‐choice questions.
         - Payload for quiz generation:
             {
               "concept": "<most_recent_objective>"
@@ -71,7 +72,7 @@ SESSION_SYSTEM_PROMPT = (
             - The learner's answer may be a number, a string, or a combination of both.
 
     4. **CALL_CODER**
-        - To generate code skeletons with TODOs.
+        - To call the agent that will generate code skeletons with TODOs.
         - Payload:
             {
               "code_direction": "<string_description_of_code_to_generate>",
@@ -79,6 +80,17 @@ SESSION_SYSTEM_PROMPT = (
             }
         - The `code_direction` should be a brief description of the code to generate based on the most recent objective explained.
         - The `file_name` should be a valid filename for the generated code with the appropriate extenstion (e.g., `.cu`, `.cpp`, `.py`, etc.).
+        - Only ask the Coder agent to generate a single file at a time.
+        - Do not ask for CMakefiles or other build scripts; focus on the code itself.
+        - The Builder agent will handle compilation and execution of the generated code.
+
+    5. **CALL_BUILDER**
+        - To call the agent that will compile and run the generated code.
+        - Payload:
+            {
+              "file_name": "<name_of_file_to_compile_and_run>"
+            }
+        - The `file_name` should match the file name used in the CALL_CODER action.
 
     5. **FINISH**
         - Terminate the session with a summary.
