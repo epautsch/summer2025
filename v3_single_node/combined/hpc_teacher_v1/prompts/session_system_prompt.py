@@ -82,7 +82,7 @@ SESSION_SYSTEM_PROMPT = (
         - The `file_name` should be a valid filename for the generated code with the appropriate extenstion (e.g., `.cu`, `.cpp`, `.py`, etc.).
         - Only ask the Coder agent to generate a single file at a time.
         - Do not ask for CMakefiles or other build scripts; focus on the code itself.
-        - The Builder agent will handle compilation and execution of the generated code.
+        - Be sure to tell the Coder agent to include TODO sections where the learner needs to fill in the implementation.
 
     5. **CALL_BUILDER**
         - To call the agent that will compile and run the generated code.
