@@ -94,15 +94,8 @@ class SessionAgent(BaseAgent):
         elif action.type == ActionType.CALL_QUIZZER:
             payload = action.payload
 
-            try:
-                idx = self.lesson_objectives.index(payload["concept"])
-            except ValueError:
-                console.print(f"[bold red]Error: Concept '{concept}' not found in lesson objectives.[/]")
-                return None
-            else:
-                self.current_index = idx
-
             if "concept" in payload:
+                self.current_index = self.lesson_objectives.index(payload["concept"])
                 sub = self.quizzer.generate_quiz_action(payload["concept"])
             elif "user_answer" in payload:
                 sub = self.quizzer.evaluate_quiz_answer_action(payload["user_answer"])
