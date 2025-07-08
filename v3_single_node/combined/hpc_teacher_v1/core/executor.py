@@ -74,7 +74,7 @@ class Executor:
         elif action.type == ActionType.GENERATE_CODE:
             # payload: {"code": "...", "filename": "code.cpp"}
             code = p.get("code", "")
-            fname = p.get("filename", 'generated_code.out')
+            fname = p.get("file_name", 'generated_code.out')
             ext = os.path.splitext(fname)[1].lstrip('.')
             lang = ext if ext else 'text'
             syntax = Syntax(code, lang, line_numbers=True)
