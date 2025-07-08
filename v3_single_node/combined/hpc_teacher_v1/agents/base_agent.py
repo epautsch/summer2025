@@ -28,7 +28,19 @@ class BaseAgent:
         """
         context = self.history.get_full()
         full_prompt = f"{context}\n{prompt}" if context else prompt
-        raw = self.model.generate(full_prompt)
+
+        while True:
+            raw = self.model.generate(full_prompt)
+            try:
+                json.loads(strip_markdown_fences(raw))
+                break
+            except json.JSONDecodeError:
+                console.log("[bold red]JSON decoding error, retrying...[/]")
+                full_prompt += (
+                    "\nYour last response was not valid JSON. "
+                    "Please reply with only a valid JSON object."
+                )
+
         self.history.add(f"Prompt: {prompt}")
         self.history.add(f"Response: {raw}")
         return raw
