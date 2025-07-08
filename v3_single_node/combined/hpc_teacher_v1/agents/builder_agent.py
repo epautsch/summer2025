@@ -1,4 +1,4 @@
-from dataclass import dataclass
+from dataclasses import dataclass
 
 from core.action import Action, ActionType
 from agents.base_agent import BaseAgent
