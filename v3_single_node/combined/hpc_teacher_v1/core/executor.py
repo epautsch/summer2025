@@ -67,7 +67,10 @@ class Executor:
 
             console.print("Are you ready to continue with the lesson?")
 
-            return Observation(result=f"Quiz answer evaluated. Answer was {'correct' if correct else 'incorrect'}.")
+            return Observation(result=f"""
+                               Quiz answer evaluated. Answer was {'correct' if correct else 'incorrect'}.
+                               User prompted if they are ready to continue.
+                               """)
 
         elif action.type == ActionType.CODE:
             code = action.payload.get('input', '')
