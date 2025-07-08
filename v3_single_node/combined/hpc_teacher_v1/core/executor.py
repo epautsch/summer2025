@@ -5,7 +5,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
-from rich.prompt import Prompt
 
 from core.action import Action, ActionType
 from core.utilities import save_to_file, run_shell
@@ -72,14 +71,17 @@ class Executor:
                                User prompted if they are ready to continue.
                                """)
 
-        elif action.type == ActionType.CODE:
-            code = action.payload.get('input', '')
-            fname = action.payload.get('filename', 'code.out')
+        elif action.type == ActionType.GENERATE_CODE:
+            # payload: {"code": "...", "filename": "code.cpp"}
+            code = p.get("code", "")
+            fname = p.get("filename", 'generated_code.out')
             ext = os.path.splitext(fname)[1].lstrip('.')
             lang = ext if ext else 'text'
             syntax = Syntax(code, lang, line_numbers=True)
             console.print(Panel(syntax, title=f"Generated Code → {fname}"))
+
             save_to_file(code, fname)
+
             return Observation(result=f"Saved code to {fname}")
 
         elif action.type == ActionType.SYSTEM_CALL:

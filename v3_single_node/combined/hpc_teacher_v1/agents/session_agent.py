@@ -7,6 +7,7 @@ from rich.console import Console
 from agents.base_agent import BaseAgent
 from agents.explainer_agent import ExplainerAgent
 from agents.quizzer_agent import QuizzerAgent
+from agents.coder_agent import CoderAgent
 from core.executor import Executor
 from core.action import Action, ActionType
 
@@ -30,6 +31,7 @@ class SessionAgent(BaseAgent):
     executor:   Executor
     explainer:  ExplainerAgent
     quizzer:    QuizzerAgent
+    coder:      CoderAgent
 
     lesson_topic: str = ""
     lesson_objectives: List[str] = field(default_factory=list)
@@ -104,6 +106,13 @@ class SessionAgent(BaseAgent):
 
             obs = self.executor.execute(sub)
 
+        elif action.type == ActionType.CALL_CODER:
+            code_direction = action.payload.get("code_direction", "")
+            file_name = action.payload.get("file_name", "")
+
+            sub = self.coder.generate_code_action(code_direction, file_name)
+            obs = self.executor.execute(sub)
+
         elif action.type == ActionType.FINISH:
             obs = self.executor.execute(action)
 
@@ -143,6 +152,8 @@ class SessionAgent(BaseAgent):
             self.state = SessionState.EXPLAINING
         elif action.type == ActionType.CALL_QUIZZER:
             self.state = SessionState.QUIZZING
+        elif action.type == ActionType.CALL_CODER:
+            self.state = SessionState.CODING
         elif action.type == ActionType.FINISH:
             self.state = SessionState.FINISHED
         else:

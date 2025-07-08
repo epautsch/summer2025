@@ -20,6 +20,9 @@ class ActionType(Enum):
     GENERATE_QUIZ = auto()
     EVALUATE_QUIZ_ANSWER = auto()
 
+    # Used by CoderAgent
+    GENERATE_CODE = auto()
+
 
 @dataclass
 class Action:
