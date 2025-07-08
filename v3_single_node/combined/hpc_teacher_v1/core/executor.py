@@ -57,7 +57,7 @@ class Executor:
 
         elif action.type == ActionType.EVALUATE_QUIZ_ANSWER:
             p = action.payload
-            correct = p.get("is_correct", False)
+            correct = bool(p.get("is_correct", "False"))
             feedback = p.get("feedback", "")
 
             status = "[bold green]✔ Correct![/]" if correct else "[bold red]✘ Incorrect.[/]"
