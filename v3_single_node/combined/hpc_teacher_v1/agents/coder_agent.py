@@ -10,6 +10,7 @@ class CoderAgent(BaseAgent):
     Agent that specializes in generating code based on the current lesson
     direction given by the SessionAgent.
     """
+
     def generate_code_action(self, code_direction: str, file_name: str) -> Action:
         """
         Generate code based on the provided direction from the SessionAgent.

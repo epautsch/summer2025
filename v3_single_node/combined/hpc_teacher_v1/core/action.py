@@ -23,6 +23,10 @@ class ActionType(Enum):
     # Used by CoderAgent
     GENERATE_CODE = auto()
 
+    # Used by BuilderAgent
+    COMPILE_CODE = auto()
+    RUN_CODE = auto()
+
 
 @dataclass
 class Action:

@@ -89,7 +89,9 @@ class Executor:
             console.print(Panel(
                 "[bold]Review the code above[/] in the console.\n"
                 "When you're ready to address any TODO comments,\n"
-                "[bold]press ENTER[/] to open your editor.",
+                "[bold]press ENTER[/] to open your editor.\n"
+                "When you are done editing, the file will be saved "
+                "and the code will be compiled and evaluated.",
                 title="Next Step",
                 expand=False
             ))
@@ -109,7 +111,11 @@ class Executor:
 
             save_to_file(code, fname)
 
-            return Observation(result=f"Saved code to {fname}")
+            return Observation(result=f"""
+                               User has saved their code file to {fname} 
+                               and the code is ready for compilation and 
+                               evaluation.
+                               """)
 
         elif action.type == ActionType.SYSTEM_CALL:
             if isinstance(action.payload, str):

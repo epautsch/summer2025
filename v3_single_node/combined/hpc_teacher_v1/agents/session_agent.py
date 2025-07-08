@@ -8,6 +8,7 @@ from agents.base_agent import BaseAgent
 from agents.explainer_agent import ExplainerAgent
 from agents.quizzer_agent import QuizzerAgent
 from agents.coder_agent import CoderAgent
+from agents.builder_agent import BuilderAgent
 from core.executor import Executor
 from core.action import Action, ActionType
 
@@ -32,6 +33,7 @@ class SessionAgent(BaseAgent):
     explainer:  ExplainerAgent
     quizzer:    QuizzerAgent
     coder:      CoderAgent
+    builder:    BuilderAgent
 
     lesson_topic: str = ""
     lesson_objectives: List[str] = field(default_factory=list)

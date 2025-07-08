@@ -20,7 +20,7 @@ class LLMClient:
             {"role": "user", "content": [{"type": "text", "text": user_prompt}]}
         ]
         # DEBUG print
-        console.print("[blue]▶️  LLMClient.generate() input:[/]\n", input)
+       # console.print("[blue]▶️  LLMClient.generate() input:[/]\n", input)
 
         with console.status("Generating response...", spinner="dots"):
             # tokenize & run
@@ -49,5 +49,5 @@ class LLMClient:
             # decode
             gen_ids = out[0][input_len:]
             decoded = self.processor.decode(gen_ids, skip_special_tokens=True)
-            console.print("[red]▶️  LLMClient.generate() output:[/]\n", decoded)
+          #  console.print("[red]▶️  LLMClient.generate() output:[/]\n", decoded)
             return decoded
