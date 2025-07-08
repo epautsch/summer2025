@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
+from rich.prompt import Prompt
 
 from core.action import Action, ActionType
 from core.utilities import save_to_file, run_shell
@@ -80,16 +81,31 @@ class Executor:
             ext = os.path.splitext(fname)[1].lstrip('.')
             lang = ext if ext else 'text'
             syntax = Syntax(code, lang, line_numbers=True)
-            console.print(Panel(syntax, title=f"Generated Code → {fname}"))
+            console.print(Panel(syntax, title=f"📝 Generated Code → {fname}"))
 
             save_to_file(code, fname)
+
+            console.print()
+            console.print(Panel(
+                "[bold]Review the code above[/] in the console.\n"
+                "When you're ready to address any TODO comments,\n"
+                "[bold]press ENTER[/] to open your editor.",
+                title="Next Step",
+                expand=False
+            ))
+
+            Prompt.ask("", default="", show_default=False)
 
             editor = os.environ.get('EDITOR', 'vi')
             subprocess.run([editor, fname])
 
             with open(fname) as f:
                 final = f.read()
-            console.print(Panel(Syntax(final, lang, line_numbers=True), title="Your Edit"))
+            console.print(Panel(
+                Syntax(final, lang, line_numbers=True),
+                title="🛠️ Your Edits",
+                expand=False
+            ))
 
             save_to_file(code, fname)
 

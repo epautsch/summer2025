@@ -182,7 +182,10 @@ class SessionAgent(BaseAgent):
         self.handle(action)
 
         while self.state != SessionState.FINISHED:
-            user_input = Prompt.ask("Your input")
+            user_input = ""
+            while not user_input.strip():
+                user_input = Prompt.ask("Your input").strip()
             action = self.step(user_input)
             self.handle(action)
+
         console.print("[bold green]Session complete![/]")
