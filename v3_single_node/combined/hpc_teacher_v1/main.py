@@ -11,10 +11,12 @@ from agents.session_agent import SessionAgent
 from agents.explainer_agent import ExplainerAgent
 from agents.quizzer_agent import QuizzerAgent
 from agents.coder_agent import CoderAgent
+from agents.builder_agent import BuilderAgent
 from prompts.session_system_prompt import SESSION_SYSTEM_PROMPT
 from prompts.explainer_prompt import EXPLAINER_PROMPT
 from prompts.quizzer_prompt import QUIZZER_PROMPT
 from prompts.coder_prompt import CODER_PROMPT
+from prompts.builder_prompt import BUILDER_PROMPT
 from prompts.summarizer_prompt import SUMMARIZER_PROMPT
 
 console = Console()
@@ -87,14 +89,23 @@ def main():
         max_new_tokens=1024
     )
 
+    builder_llm = LLMClient(
+        hf_model=hf_model,
+        processor=processor,
+        system_prompt=BUILDER_PROMPT,
+        max_new_tokens=1024
+    )
+
     session_history = HistoryManager(summarizer=summarizer_llm)
     explainer_history = HistoryManager(summarizer=summarizer_llm)
     quizzer_history = HistoryManager(summarizer=summarizer_llm)
     coder_history = HistoryManager(summarizer=summarizer_llm)
+    builder_history = HistoryManager(summarizer=summarizer_llm)
 
     explainer = ExplainerAgent(model=explainer_llm, history=explainer_history)
     quizzer = QuizzerAgent(model=quizzer_llm, history=quizzer_history)
     coder = CoderAgent(model=coder_llm, history=coder_history)
+    builder = BuilderAgent(model=builder_llm, history=builder_history)
 
     executor = Executor()
 
@@ -104,7 +115,8 @@ def main():
         executor=executor,
         explainer=explainer,
         quizzer=quizzer,
-        coder=coder
+        coder=coder,
+        builder=builder
     )
 
     session.run()
