@@ -65,13 +65,9 @@ class Executor:
             console.print(Panel(status, title="Quiz Result", expand=False))
             console.print(Panel(feedback, title="Feedback", expand=False))
 
-            ready = Prompt.ask(
-                "Are you ready to continue with the lesson?",
-                choices=["yes", "no"],
-                default="yes",
-            )
+            console.print("Are you ready to continue with the lesson?")
 
-            return Observation(result=ready)
+            return Observation(result=f"Quiz answer evaluated. Answer was {'correct' if correct else 'incorrect'}.")
 
         elif action.type == ActionType.CODE:
             code = action.payload.get('input', '')
