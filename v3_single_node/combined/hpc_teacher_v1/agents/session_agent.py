@@ -8,7 +8,7 @@ from agents.base_agent import BaseAgent
 from agents.explainer_agent import ExplainerAgent
 from agents.quizzer_agent import QuizzerAgent
 from agents.coder_agent import CoderAgent
-from agents.builder_agent import BuilderAgent
+from agents.reviewer_agent import ReviewerAgent
 from core.executor import Executor
 from core.action import Action, ActionType
 
@@ -33,7 +33,7 @@ class SessionAgent(BaseAgent):
     explainer:  ExplainerAgent
     quizzer:    QuizzerAgent
     coder:      CoderAgent
-    builder:    BuilderAgent
+    reviewer:   ReviewerAgent
 
     lesson_topic: str = ""
     lesson_objectives: List[str] = field(default_factory=list)
@@ -114,6 +114,27 @@ class SessionAgent(BaseAgent):
 
             sub = self.coder.generate_code_action(code_direction, file_name)
             obs = self.executor.execute(sub)
+
+        elif action.type == ActionType.CALL_REVIEWER:
+            payload = action.payload
+            file_name = payload.get("file_name", "")
+            topic = payload.get("topic", self.lesson_topic)
+
+            self.reviewer.initialize_review_action(
+                file_name=file_name,
+                topic=topic
+            )
+
+            obs = None
+            while True:
+                review_action = self.reviewer.step()
+
+                obs = self.executor.execute(review_action)
+
+                self.reviewer.history.add(f"Reviewer Observation: {obs.result}")
+
+                if review_action.type == ActionType.REVIEW_FINISH:
+                    break
 
         elif action.type == ActionType.FINISH:
             obs = self.executor.execute(action)

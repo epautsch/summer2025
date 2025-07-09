@@ -22,7 +22,7 @@ def run_shell(cmd: str) -> str:
         )
         out, _ = proc.communicate()
     text = out.decode("utf-8", errors="ignore")
-    console.log(f"🔹 [bold blue]Shell output:[/]\n{text}")
+    console.print(f"🔹 [bold blue]Shell output:[/]\n{text}")
     return text
 
 

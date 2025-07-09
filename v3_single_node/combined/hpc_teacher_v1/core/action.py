@@ -9,7 +9,7 @@ class ActionType(Enum):
     CALL_EXPLAINER = auto()
     CALL_QUIZZER = auto()
     CALL_CODER = auto()
-    SYSTEM_CALL = auto()
+    CALL_REVIEWER = auto()
     GENERATE_HOMEWORK = auto()
     FINISH = auto()
 
@@ -26,6 +26,10 @@ class ActionType(Enum):
     # Used by BuilderAgent
     COMPILE_CODE = auto()
     RUN_CODE = auto()
+
+    # Used by ReviewerAgent
+    SYSTEM_CALL = auto()
+    REVIEW_FINISH = auto()
 
 
 @dataclass

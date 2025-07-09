@@ -124,3 +124,23 @@ class Executor:
                 cmd = action.payload.get('cmd', '')
             output = run_shell(cmd)
             return Observation(result=output)
+
+        elif action.type == ActionType.REVIEW_FINISH:
+            # payload: the reviewer's final review in string format
+            console.print(Panel(p, title="Final Review", expand=False))
+            return Observation(result=f"Review completed: {p}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
