@@ -120,15 +120,12 @@ class SessionAgent(BaseAgent):
             file_name = payload.get("file_name", "")
             topic = payload.get("topic", self.lesson_topic)
 
-            self.reviewer.initialize_review_action(
+            review_action = self.reviewer.initialize_review_action(
                 file_name=file_name,
                 topic=topic
             )
 
-            obs = None
-            while True:
-                review_action = self.reviewer.step()
-
+            while review_action.type != ActionType.REVIEW_FINISH:
                 # print type of review_action
                 console.print(f"[bold cyan]Review Action Type:[/bold cyan] {review_action.type}")
 
@@ -136,8 +133,9 @@ class SessionAgent(BaseAgent):
 
                 self.reviewer.history.add(f"Reviewer Observation: {obs.result}")
 
-                if review_action.type == ActionType.REVIEW_FINISH:
-                    break
+                review_action = self.reviewer.step()
+
+            obs = self.executor.execute(review_action)
 
         elif action.type == ActionType.FINISH:
             obs = self.executor.execute(action)
