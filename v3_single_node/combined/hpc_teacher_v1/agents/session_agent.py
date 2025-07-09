@@ -129,6 +129,9 @@ class SessionAgent(BaseAgent):
             while True:
                 review_action = self.reviewer.step()
 
+                # print type of review_action
+                console.print(f"[bold cyan]Review Action Type:[/bold cyan] {review_action.type}")
+
                 obs = self.executor.execute(review_action)
 
                 self.reviewer.history.add(f"Reviewer Observation: {obs.result}")
