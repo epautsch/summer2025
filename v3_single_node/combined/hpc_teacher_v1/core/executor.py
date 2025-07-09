@@ -84,6 +84,8 @@ class Executor:
             console.print(Panel(syntax, title=f"📝 Generated Code → {fname}"))
 
             save_to_file(code, fname)
+            learner_fname = f"learner_{fname}"
+            save_to_file(code, learner_fname)
 
             console.print()
             console.print(Panel(
@@ -99,7 +101,7 @@ class Executor:
             Prompt.ask("", default="", show_default=False)
 
             editor = os.environ.get('EDITOR', 'vi')
-            subprocess.run([editor, fname])
+            subprocess.run([editor, learner_fname])
 
             with open(fname) as f:
                 final = f.read()
@@ -109,10 +111,8 @@ class Executor:
                 expand=False
             ))
 
-            save_to_file(code, fname)
-
             return Observation(result=f"""
-                               User has saved their code file to {fname} 
+                               User has saved their code file to {learner_fname} 
                                and the code is ready for compilation and 
                                evaluation.
                                """)
