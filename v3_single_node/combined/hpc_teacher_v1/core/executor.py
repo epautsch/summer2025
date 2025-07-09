@@ -118,10 +118,8 @@ class Executor:
                                """)
 
         elif action.type == ActionType.SYSTEM_CALL:
-            if isinstance(action.payload, str):
-                cmd = action.payload
-            else:
-                cmd = action.payload.get('cmd', '')
+            cmd = action.payload
+            console.print(Panel(f"Running shell command: {cmd}", title="Shell Command", expand=False))
             output = run_shell(cmd)
             return Observation(result=output)
 

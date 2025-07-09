@@ -35,7 +35,7 @@ class BaseAgent:
                 json.loads(strip_markdown_fences(raw))
                 break
             except json.JSONDecodeError:
-                console.log("[bold red]JSON decoding error, retrying...[/]")
+                console.print("[bold red]JSON decoding error, retrying...[/]")
                 full_prompt += (
                     "\nYour last response was not valid JSON. "
                     "Please reply with only a valid JSON object."
