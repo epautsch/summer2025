@@ -23,6 +23,7 @@ CODER_PROMPT = (
     Guidelines:
         - Generate code that is relevant to the most recent objective explained in the session.
         - The code should include TODO sections where the learner needs to fill in the implementation.
+        - Make sure the code does not completely solve the problem, but provides a good starting point for the learner.
         - The file name should be descriptive of the code's purpose.
         - Do not output any free-text, markdown, or other keys—only the JSON object defined above.
     """

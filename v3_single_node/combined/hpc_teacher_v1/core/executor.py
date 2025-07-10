@@ -134,7 +134,7 @@ class Executor:
             # if code_suggestions then print it with text stating "Code Suggestions"
             if len(code_suggestions) > 0:
                 console.print(Panel(code_suggestions, title="Code Suggestions", expand=False))
-            return Observation(result="Review finished and feedback provided.")
+            return Observation(result="Review finished and feedback provided was the following:\n" + feedback)
 
         elif action.type == ActionType.QUERY_USER:
             # payload: {"question": "..."}
