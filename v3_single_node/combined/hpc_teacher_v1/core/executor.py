@@ -128,11 +128,11 @@ class Executor:
             # payload contains the "feed_back_summary" and the optional
             # "code_suggestions" keys
 
-            feedback = p.get("feed_back_summary", "")
+            feedback = p.get("feedback_summary", "")
             code_suggestions = p.get("code_suggestions", "")
             console.print(Panel(feedback, title="Review Summary", expand=False))
             # if code_suggestions then print it with text stating "Code Suggestions"
-            if code_suggestions:
+            if len(code_suggestions) > 0:
                 console.print(Panel(code_suggestions, title="Code Suggestions", expand=False))
             return Observation(result="Review finished and feedback provided.")
 

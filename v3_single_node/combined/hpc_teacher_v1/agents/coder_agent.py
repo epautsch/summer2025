@@ -20,6 +20,7 @@ class CoderAgent(BaseAgent):
             f"""
             Generate code based on the following direction:
             {code_direction}
+            Use the file name '{file_name}' for the generated code.
             """
         )
         raw = self._generate(prompt)
