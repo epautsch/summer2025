@@ -56,8 +56,6 @@ class SessionAgent(BaseAgent):
         """
         prompt = self._build_state_prompt(user_input)
         raw = self._generate(prompt)
-        #self.history.add(f"Session Prompt: {prompt}")
-        #self.history.add(f"Session Response: {raw}")
 
         action = self._parse_action(raw, expect=list(ActionType))
 
@@ -73,7 +71,6 @@ class SessionAgent(BaseAgent):
             # Initialize the session with a lesson plan
             self.lesson_topic = action.payload.get("topic", "")
             self.lesson_objectives = action.payload.get("objectives", [])
-            #self.current_objective = self.lesson_objectives[0] if self.lesson_objectives else ""
             obs = self.executor.execute(action)
 
         elif action.type == ActionType.CALL_EXPLAINER:
@@ -137,6 +134,10 @@ class SessionAgent(BaseAgent):
 
             obs = self.executor.execute(review_action)
 
+        elif action.type == ActionType.QUERY_USER:
+            # This action is used to query the user for input
+            obs = self.executor.execute(action)
+
         elif action.type == ActionType.FINISH:
             obs = self.executor.execute(action)
 
@@ -161,7 +162,7 @@ class SessionAgent(BaseAgent):
             f"CURRENT OBJECTIVE: {self.lesson_objectives[self.current_index] if self.lesson_objectives else None}\n"
             f"HISTORY: {self.history.get_full()}\n"
             f"USER INPUT: {user_input}\n"
-            "Choose the next action based on the information above."
+            #"Choose the next action based on the information above."
         )
 
         return state_prompt
@@ -178,6 +179,8 @@ class SessionAgent(BaseAgent):
             self.state = SessionState.QUIZZING
         elif action.type == ActionType.CALL_CODER:
             self.state = SessionState.CODING
+        elif action.type == ActionType.CALL_REVIEWER:
+            self.state = SessionState.REVIEW
         elif action.type == ActionType.FINISH:
             self.state = SessionState.FINISHED
         else:

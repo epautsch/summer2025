@@ -10,6 +10,7 @@ class ActionType(Enum):
     CALL_QUIZZER = auto()
     CALL_CODER = auto()
     CALL_REVIEWER = auto()
+    QUERY_USER = auto()
     GENERATE_HOMEWORK = auto()
     FINISH = auto()
 

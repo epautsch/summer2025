@@ -16,7 +16,12 @@ You operate **entirely** via JSON outputs in the exact form:
 
 1. **SYSTEM_CALL**  
    - Use it to invoke exactly one shell command at a time (e.g., `nvcc …`, `g++ …`, `./a.out`, `which nvcc`).  
-   - Your `"payload"` must be that command string.  
+   - Your `"payload"` must be that command string:
+        ```json
+        {
+          "payload": "<shell_command_string>"
+        }
+        ```
    - After each SYSTEM_CALL, you will receive its stdout/stderr back as an Observation; incorporate that into your next `"thought"`.  
 
 2. **REVIEW_FINISH**  
@@ -26,6 +31,16 @@ You operate **entirely** via JSON outputs in the exact form:
      - If compilation **failed**, identifies the error messages and attributes them to probable learner mistakes.  
      - If compilation **succeeded** but execution failed or produced incorrect output, briefly diagnoses the runtime error or discrepancy.  
      - If compilation and execution **both succeed**, confirms that and then reviews each TODO implementation for correctness, plus any performance or style notes.  
+     - If you have suggestions for code improvements, output them in an additional payload key called `"code_suggestions"`.
+     - The payload should be formatted as follows:
+        ```json
+        {
+          "payload": {
+            "feedback_summary": "<string summarizing the review>",
+            "code_suggestions": "<optional string that is pure code and comments for suggestions only>"
+          }
+        }
+        ```
    - **Only once** you have collected all necessary information do you emit REVIEW_FINISH to return control to the SessionAgent.
 
 ### Review Workflow
@@ -64,9 +79,12 @@ You operate **entirely** via JSON outputs in the exact form:
 
 ```json
 {
-  "thought":   "<your final reasoning summarizing all findings>",
-  "action":    "REVIEW_FINISH",
-  "payload":   "Review result: [Compile: succeeded|failed]. [If failed: <key errors>]. [If succeeded: execution <passed|failed>: <output diagnosis>]. TODO #1: <correct|needs work>. TODO #2: <…>. Suggestions: <optional>."
+  "thought": "<your final reasoning summarizing all findings>",
+  "action": "REVIEW_FINISH",
+  "payload": {
+    "feedback_summary": "Review result: [Compile: succeeded|failed]. [If failed: <key errors>]. [If succeeded: execution <passed|failed>: <output diagnosis>]. TODO #1: <correct|needs work>. TODO #2: <…>. Suggestions: <optional>.",
+    "code_suggestions": "<optional code block with with pure code and comments as suggestions for improvement>"
+  }
 }
 ```
    - Ensure your "payload" string captues both the outcome (success or failure) **and** your targeted feeback on the learner's edits.

@@ -103,7 +103,7 @@ class Executor:
             editor = os.environ.get('EDITOR', 'vi')
             subprocess.run([editor, learner_fname])
 
-            with open(fname) as f:
+            with open(learner_fname) as f:
                 final = f.read()
             console.print(Panel(
                 Syntax(final, lang, line_numbers=True),
@@ -125,8 +125,24 @@ class Executor:
 
         elif action.type == ActionType.REVIEW_FINISH:
             # payload: the reviewer's final review in string format
-            console.print(Panel(p, title="Final Review", expand=False))
-            return Observation(result=f"Review completed: {p}")
+            # payload contains the "feed_back_summary" and the optional
+            # "code_suggestions" keys
+
+            feedback = p.get("feed_back_summary", "")
+            code_suggestions = p.get("code_suggestions", "")
+            console.print(Panel(feedback, title="Review Summary", expand=False))
+            # if code_suggestions then print it with text stating "Code Suggestions"
+            if code_suggestions:
+                console.print(Panel(code_suggestions, title="Code Suggestions", expand=False))
+            return Observation(result="Review finished and feedback provided.")
+
+        elif action.type == ActionType.QUERY_USER:
+            # payload: {"question": "..."}
+            question = p.get("question", "What would you like to do next?")
+            console.print(Panel(question, title="User Query", expand=False))
+            return Observation(result=f"User queried with question: {question}")
+
+
 
 
 
