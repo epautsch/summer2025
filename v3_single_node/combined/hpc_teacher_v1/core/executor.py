@@ -132,7 +132,7 @@ class Executor:
             code_suggestions = p.get("code_suggestions", "")
             console.print(Panel(feedback, title="Review Summary", expand=False))
             # if code_suggestions then print it with text stating "Code Suggestions"
-            if len(code_suggestions) > 0:
+            if code_suggestions:
                 console.print(Panel(code_suggestions, title="Code Suggestions", expand=False))
             return Observation(result="Review finished and feedback provided was the following:\n" + feedback)
 
